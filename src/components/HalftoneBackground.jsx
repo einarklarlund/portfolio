@@ -62,7 +62,7 @@ function renderHalftone(ctx, pixels, srcW, srcH, canvasW, canvasH, dotSpacing) {
   }
 }
 
-export default function HalftoneBackground({ src = '/halftone.mp4' }) {
+export default function HalftoneBackground({ src = import.meta.env.BASE_URL + 'halftone.mp4' }) {
   const canvasRef = useRef(null)
 
   useEffect(() => {
