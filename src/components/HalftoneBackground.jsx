@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 const PLACEHOLDER_COLORS = [
   '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4',
@@ -64,6 +64,12 @@ function renderHalftone(ctx, pixels, srcW, srcH, canvasW, canvasH, dotSpacing) {
 
 export default function HalftoneBackground({ src = import.meta.env.BASE_URL + 'halftone.mp4' }) {
   const canvasRef = useRef(null)
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    const fadeTimer = setTimeout(() => setVisible(true), 1000)
+    return () => clearTimeout(fadeTimer)
+  }, [])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -136,6 +142,8 @@ export default function HalftoneBackground({ src = import.meta.env.BASE_URL + 'h
         width: '100%',
         height: '100%',
         zIndex: 0,
+        opacity: visible ? 1 : 0,
+        transition: 'opacity 0.8s ease-in',
       }}
     />
   )
