@@ -77,7 +77,7 @@ function TimelineEntry({ entry, isLast }) {
           style={{
             fontSize: '0.75rem',
             letterSpacing: '0.1em',
-            color: '#091413',
+            color: '#37353E',
             fontWeight: 500,
           }}
         >
@@ -99,10 +99,10 @@ function TimelineEntry({ entry, isLast }) {
             width: '10px',
             height: '10px',
             borderRadius: '50%',
-            background: '#091413',
+            background: '#37353E',
             flexShrink: 0,
             marginTop: '0.25rem',
-            boxShadow: '0 0 0 3px rgba(9,20,19,0.2)',
+            boxShadow: '0 0 0 3px rgba(55,53,62,0.2)',
           }}
         />
         {/* Connecting line */}
@@ -111,7 +111,7 @@ function TimelineEntry({ entry, isLast }) {
             style={{
               flex: 1,
               width: '1px',
-              background: 'rgba(9,20,19,0.25)',
+              background: 'rgba(55,53,62,0.25)',
               marginTop: '0.5rem',
             }}
           />
@@ -124,7 +124,7 @@ function TimelineEntry({ entry, isLast }) {
           style={{
             fontSize: '1rem',
             fontWeight: 700,
-            color: '#091413',
+            color: '#37353E',
             marginBottom: '0.2rem',
             letterSpacing: '-0.01em',
           }}
@@ -135,7 +135,7 @@ function TimelineEntry({ entry, isLast }) {
           style={{
             fontSize: '0.8rem',
             fontWeight: 500,
-            color: '#091413',
+            color: '#37353E',
             marginBottom: '0.75rem',
             letterSpacing: '0.05em',
             textTransform: 'uppercase',
@@ -146,7 +146,7 @@ function TimelineEntry({ entry, isLast }) {
         <p
           style={{
             fontSize: '0.88rem',
-            color: '#091413',
+            color: '#37353E',
             lineHeight: 1.65,
             marginBottom: '0.85rem',
           }}
@@ -162,9 +162,9 @@ function TimelineEntry({ entry, isLast }) {
                 fontWeight: 500,
                 padding: '0.25rem 0.7rem',
                 borderRadius: '999px',
-                background: 'rgba(9,20,19,0.1)',
-                border: '1px solid rgba(9,20,19,0.2)',
-                color: '#091413',
+                background: 'rgba(55,53,62,0.1)',
+                border: '1px solid rgba(55,53,62,0.2)',
+                color: '#37353E',
               }}
             >
               {tag}
@@ -193,8 +193,8 @@ export default function WorkExperienceSection() {
         alignItems: 'center',
         justifyContent: 'center',
         padding: '6rem 2rem',
-        background: '#408A71',
-        color: '#091413',
+        background: '#D3DAD9',
+        color: '#37353E',
       }}
     >
       <motion.div

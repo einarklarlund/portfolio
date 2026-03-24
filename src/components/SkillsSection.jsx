@@ -71,7 +71,7 @@ function SkillCategory({ category, items }) {
           fontSize: '0.7rem',
           letterSpacing: '0.2em',
           textTransform: 'uppercase',
-          color: '#408A71',
+          color: '#715A5A',
           marginBottom: '1rem',
           fontWeight: 600,
         }}
@@ -101,7 +101,7 @@ function SkillCategory({ category, items }) {
               borderRadius: '999px',
               background: 'rgba(255,255,255,0.08)',
               border: '1px solid rgba(255,255,255,0.15)',
-              color: '#B0E4CC',
+              color: '#D3DAD9',
               letterSpacing: '0.01em',
             }}
           >
@@ -122,7 +122,7 @@ function SkillGroup({ group, isInView }) {
           fontWeight: 700,
           letterSpacing: '-0.01em',
           marginBottom: '0.5rem',
-          color: '#B0E4CC',
+          color: '#D3DAD9',
         }}
       >
         {group.title}
@@ -130,7 +130,7 @@ function SkillGroup({ group, isInView }) {
       <p
         style={{
           fontSize: '0.85rem',
-          color: '#408A71',
+          color: '#715A5A',
           lineHeight: 1.6,
           maxWidth: '550px',
           margin: '0 auto 2.5rem',
@@ -174,8 +174,8 @@ export default function SkillsSection() {
         alignItems: 'center',
         justifyContent: 'center',
         padding: '6rem 2rem',
-        background: '#285A48',
-        color: '#B0E4CC',
+        background: '#44444E',
+        color: '#D3DAD9',
       }}
     >
       <motion.div
@@ -207,7 +207,7 @@ export default function SkillsSection() {
             width: '100%',
             maxWidth: '200px',
             height: '1px',
-            background: 'linear-gradient(90deg, transparent, #408A71, transparent)',
+            background: 'linear-gradient(90deg, transparent, #715A5A, transparent)',
             margin: '3.5rem auto',
           }}
         />
@@ -227,7 +227,7 @@ export default function SkillsSection() {
           justifyContent: 'center',
         }}
       >
-        <ScrollArrow label="work experience" targetId="work-experience" style={{ color: '#408A71' }} />
+        <ScrollArrow label="work experience" targetId="work-experience" style={{ color: '#715A5A' }} />
       </motion.div>
     </section>
   )

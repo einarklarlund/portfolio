@@ -1,14 +1,15 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+@import url('https://fonts.cdnfonts.com/css/vcr-osd-mono');
 
 :root {
-  --bg: #dcdcda;
-  --text: #1a1a18;
-  --text-muted: #6e6e6e;
-  --accent: #1a1a18;
-  --surface: rgba(0, 0, 0, 0.04);
-  --border: rgba(0, 0, 0, 0.1);
+  --bg: #D3DAD9;
+  --text: #37353E;
+  --text-muted: #44444E;
+  --accent: #715A5A;
+  --surface: rgba(55, 53, 62, 0.05);
+  --border: rgba(55, 53, 62, 0.12);
 }
 
 * {
