@@ -91,17 +91,20 @@ function renderCRT(ctx, pixels, srcW, srcH, canvasW, canvasH, cellSize) {
  * Returns a promise that resolves once metadata is loaded.
  */
 function createVideoElement(url) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const video = document.createElement('video')
     video.src = url
     video.muted = true
     video.playsInline = true
-    video.preload = 'auto'
+    video.preload = 'metadata'
     video.crossOrigin = 'anonymous'
     video.style.display = 'none'
     document.body.appendChild(video)
-    video.addEventListener('loadeddata', () => resolve(video), { once: true })
-    video.addEventListener('error', () => reject(new Error(`Failed to load ${url}`)), { once: true })
+    // Resolve on metadata (fires on mobile) or after a short timeout as fallback
+    const done = () => resolve(video)
+    video.addEventListener('loadedmetadata', done, { once: true })
+    video.addEventListener('error', done, { once: true })
+    setTimeout(done, 3000)
   })
 }
 
@@ -121,6 +124,7 @@ export default function CrtBackground() {
     const ctx = canvas.getContext('2d')
     const cellSize = 4
     const offscreen = document.createElement('canvas')
+    const octx = offscreen.getContext('2d', { willReadFrequently: true })
     let frameId = 0
     let cancelled = false
 
@@ -219,9 +223,8 @@ export default function CrtBackground() {
 
         const w = canvas.width
         const h = canvas.height
-        offscreen.width = w
-        offscreen.height = h
-        const octx = offscreen.getContext('2d')
+        if (offscreen.width !== w) offscreen.width = w
+        if (offscreen.height !== h) offscreen.height = h
 
         if (transState === 'playing') {
           if (currentVideo.videoWidth > 0) {
