@@ -34,7 +34,7 @@ function SpeakerPanel({ side }) {
   )
 }
 
-export default function CrtBackground() {
+export default function CrtBackground({ ref }) {
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
@@ -44,6 +44,7 @@ export default function CrtBackground() {
 
   return (
     <div
+      ref={ref}
       style={{
         position: 'absolute',
         top: 0,

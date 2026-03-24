@@ -1,10 +1,35 @@
-import { motion, useScroll, useTransform } from 'framer-motion'
-import { useRef } from 'react'
+import { motion } from 'framer-motion'
+import { useRef, useEffect, useState } from 'react'
 import CrtBackground from './CrtBackground'
 import ScrollArrow from './ScrollArrow'
+import Dither from './Dither'
 
 export default function IntroSection() {
   const sectionRef = useRef(null)
+  const crtRef = useRef(null)
+  const [box, setBox] = useState(null)
+
+  useEffect(() => {
+    const measure = () => {
+      const crtEl = crtRef.current
+      const secEl = sectionRef.current
+      if (!crtEl || !secEl) return
+      const crtRect = crtEl.getBoundingClientRect()
+      const secRect = secEl.getBoundingClientRect()
+      setBox({
+        x: (crtRect.left - secRect.left + crtRect.width / 2) / secRect.width,
+        y: (crtRect.top - secRect.top + crtRect.height / 2) / secRect.height,
+        width: crtRect.width / secRect.width,
+        height: crtRect.height / secRect.height,
+        falloff: 0.08,
+      })
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    if (crtRef.current) ro.observe(crtRef.current)
+    if (sectionRef.current) ro.observe(sectionRef.current)
+    return () => ro.disconnect()
+  }, [])
 
   return (
     <motion.section
@@ -21,7 +46,18 @@ export default function IntroSection() {
         color: '#D3DAD9',
       }}
     >
-      <CrtBackground />
+      <Dither
+        waveColor={[0.216,0.208,0.243]}
+        disableAnimation={false}
+        enableMouseInteraction={false}
+        mouseRadius={0.1}
+        colorNum={30}
+        waveAmplitude={0.75}
+        waveFrequency={1}
+        waveSpeed={0.025}
+        box={box}
+      />
+      <CrtBackground ref={crtRef} />
 
       {/* Header — centered on top screen edge */}
       <motion.h1
