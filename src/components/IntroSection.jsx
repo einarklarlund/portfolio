@@ -1,6 +1,6 @@
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { useRef } from 'react'
-import HalftoneBackground from './HalftoneBackground'
+import CrtBackground from './CrtBackground'
 import ScrollArrow from './ScrollArrow'
 
 const container = {
@@ -39,28 +39,24 @@ export default function IntroSection() {
         height: '100vh',
         width: '100%',
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        flexDirection: 'column',
         overflow: 'hidden',
+        background: '#091413',
+        color: '#B0E4CC',
       }}
     >
-      <motion.div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          opacity,
-        }}
-      >
-        <HalftoneBackground />
-      </motion.div>
+      <CrtBackground />
 
-      {/* Scroll-driven fade wrapper (separate from variant animation) */}
+      {/* Scroll-driven fade wrapper */}
       <motion.div
         style={{
           position: 'relative',
           zIndex: 2,
           opacity,
           scale,
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
         }}
       >
         {/* Variant-driven stagger animation (initial load only) */}
@@ -69,68 +65,53 @@ export default function IntroSection() {
           initial="hidden"
           animate="show"
           style={{
-            textAlign: 'center',
-            maxWidth: '800px',
-            padding: '0 2rem',
-            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
           }}
         >
-          <motion.h1
+          {/* Heading + subtitle — pinned to the top */}
+          <motion.div
             variants={item}
             style={{
-              fontSize: 'clamp(2.5rem, 8vw, 5rem)',
-              fontWeight: 900,
-              letterSpacing: '-0.03em',
-              lineHeight: 1.1,
-              marginBottom: '1.5rem',
+              textAlign: 'center',
+              padding: '3rem 2rem 0',
               position: 'relative',
-              display: 'inline-block',
             }}
           >
-            {/* Oval behind the name */}
-            <div
+            <h1
               style={{
-                position: 'absolute',
-                inset: '-1rem -3rem',
-                background: 'radial-gradient(ellipse at center, rgba(220,220,218,0.95) 35%, transparent 75%)',
-                pointerEvents: 'none',
-                zIndex: -1,
+                fontSize: 'clamp(2.5rem, 8vw, 5rem)',
+                fontWeight: 900,
+                letterSpacing: '-0.03em',
+                lineHeight: 1.1,
+                marginBottom: '1.5rem',
               }}
-            />
-            Einar
-          </motion.h1>
+            >
+              Game Dev & Software
+            </h1>
 
-          <motion.p
-            variants={item}
-            style={{
-              fontSize: 'clamp(1rem, 2.5vw, 1.4rem)',
-              fontWeight: 300,
-              color: 'var(--text-muted)',
-              lineHeight: 1.6,
-              maxWidth: '600px',
-              margin: '0 auto',
-              position: 'relative',
-            }}
-          >
-            {/* Oval behind the subtitle */}
-            <div
+            <motion.p
+              variants={item}
               style={{
-                position: 'absolute',
-                inset: '-10rem -30rem',
-                background: 'radial-gradient(ellipse at center, rgba(220,220,218,0.92) 35%, transparent 50%)',
-                pointerEvents: 'none',
-                zIndex: -1,
+                fontSize: 'clamp(1rem, 2.5vw, 1.4rem)',
+                fontWeight: 300,
+                color: '#B0E4CC',
+                lineHeight: 1.6,
+                maxWidth: '600px',
+                margin: '0 auto',
               }}
-            />
-            Website website yay yay yay yay!! My next thing will be to change the video 
-            content behind this text and fill out all the placeholder text. 
-            Also I want to choose some different colors and fonts cuz this looks 
-            mad apple store rn. also hi Max i luv u &lt;3
-          </motion.p>
+            >
+              I'm Einar Klarlund, a gameplay and software engineer with full-stack and cloud service skills, and a love for retro games.
+            </motion.p>
+          </motion.div>
+
+          {/* Spacer to keep layout balanced */}
+          <div style={{ flex: 1 }} />
         </motion.div>
       </motion.div>
 
-      {/* Arrow with its own local oval gradient */}
+      {/* Arrow at bottom */}
       <motion.div
         style={{
           position: 'absolute',
@@ -146,12 +127,12 @@ export default function IntroSection() {
             style={{
               position: 'absolute',
               inset: '-1.5rem -3rem',
-              background: 'radial-gradient(ellipse at center, rgba(220,220,218,0.85) 30%, transparent 75%)',
+              background: 'radial-gradient(ellipse at center, rgba(9,20,19,0.85) 30%, transparent 75%)',
               pointerEvents: 'none',
               zIndex: -1,
             }}
           />
-          <ScrollArrow label="projects" targetId="projects" />
+          <ScrollArrow label="projects" targetId="projects" style={{ color: '#408A71' }} />
         </div>
       </motion.div>
     </motion.section>

@@ -13,7 +13,7 @@ export default function ScrollArrow({ label, targetId, style = {} }) {
         alignItems: 'center',
         gap: '0.5rem',
         textDecoration: 'none',
-        color: 'var(--text-muted)',
+        color: 'inherit',
         zIndex: 10,
         cursor: 'pointer',
         ...style,
