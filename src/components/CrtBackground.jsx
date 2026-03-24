@@ -30,6 +30,32 @@ const channelNumbers = VIDEO_SOURCES.map(() => Math.floor(Math.random() * 100) +
 
 const BG = '#37353E'
 
+// Background color as RGB components
+const BG_R = 0x37, BG_G = 0x35, BG_B = 0x3E
+
+// Pre-computed lookup tables for CRT phosphor colors (indexed 0-255 by channel value)
+const CRT_LUT = (() => {
+  const rR = new Uint8Array(256), rG = new Uint8Array(256), rB = new Uint8Array(256)
+  const gR = new Uint8Array(256), gG = new Uint8Array(256), gB = new Uint8Array(256)
+  const bR = new Uint8Array(256), bG = new Uint8Array(256), bB = new Uint8Array(256)
+  for (let v = 0; v < 256; v++) {
+    rR[v] = Math.min(255, Math.round(v * 1.6 + 80))
+    rG[v] = Math.floor(v * 0.25)
+    rB[v] = Math.floor(v * 0.18)
+    gR[v] = Math.floor(v * 0.18)
+    gG[v] = Math.min(255, Math.round(v * 1.6 + 70))
+    gB[v] = Math.floor(v * 0.18)
+    bR[v] = Math.floor(v * 0.18)
+    bG[v] = Math.floor(v * 0.25)
+    bB[v] = Math.min(255, Math.round(v * 1.6 + 80))
+  }
+  return { rR, rG, rB, gR, gG, gB, bR, bG, bB }
+})()
+
+// Reusable ImageData to avoid allocation each frame
+let _crtImageData = null
+let _crtBuf = null
+
 function renderCRT(ctx, pixels, srcW, srcH, canvasW, canvasH, cellSize) {
   const subW = Math.floor(cellSize / 4)
   const gap = Math.max(0, Math.floor(cellSize / 12))
@@ -37,53 +63,100 @@ function renderCRT(ctx, pixels, srcW, srcH, canvasW, canvasH, cellSize) {
   const padX = Math.floor((cellSize - totalBarW) / 2)
   const maxH = cellSize - 2
 
-  ctx.fillStyle = BG
-  ctx.fillRect(0, 0, canvasW, canvasH)
+  // Reuse or create ImageData buffer
+  if (!_crtImageData || _crtImageData.width !== canvasW || _crtImageData.height !== canvasH) {
+    _crtImageData = ctx.createImageData(canvasW, canvasH)
+    _crtBuf = new Uint32Array(_crtImageData.data.buffer)
+  }
+  const buf32 = _crtBuf
+  const buf8 = _crtImageData.data
+
+  // Fill background
+  // Pack ABGR (little-endian: R at byte 0, then G, B, A)
+  const bgPixel = (255 << 24) | (BG_B << 16) | (BG_G << 8) | BG_R
+  buf32.fill(bgPixel)
+
+  const { rR, rG, rB, gR, gG, gB, bR, bG, bB } = CRT_LUT
 
   for (let cy = 0; cy < canvasH; cy += cellSize) {
     for (let cx = 0; cx < canvasW; cx += cellSize) {
-      const px = Math.min(Math.floor(cx), srcW - 1)
-      const py = Math.min(Math.floor(cy), srcH - 1)
+      const px = Math.min(cx, srcW - 1)
+      const py = Math.min(cy, srcH - 1)
       // Chromatic bleed: offset R left, B right by 2px
-      const rx = Math.max(0, px - 2)
-      const bx = Math.min(srcW - 1, px + 2)
-      const ri = (py * srcW + rx) * 4
+      const rxp = px > 1 ? px - 2 : 0
+      const bxp = px + 2 < srcW ? px + 2 : srcW - 1
+      const ri = (py * srcW + rxp) * 4
       const gi = (py * srcW + px) * 4
-      const bi = (py * srcW + bx) * 4
+      const bi = (py * srcW + bxp) * 4
       const r = pixels[ri]
       const g = pixels[gi + 1]
       const b = pixels[bi + 2]
 
-      const channels = [
-        { value: r, color: `rgb(${Math.min(255, Math.round(r * 1.6 + 80))},${Math.floor(r * 0.25)},${Math.floor(r * 0.18)})` },
-        { value: g, color: `rgb(${Math.floor(g * 0.18)},${Math.min(255, Math.round(g * 1.6 + 70))},${Math.floor(g * 0.18)})` },
-        { value: b, color: `rgb(${Math.floor(b * 0.18)},${Math.floor(b * 0.25)},${Math.min(255, Math.round(b * 1.6 + 80))})` },
-      ]
+      // Channel values and LUT colors
+      const vals = [r, g, b]
+      const cR = [rR[r], gR[g], bR[b]]
+      const cG = [rG[r], gG[g], bG[b]]
+      const cB = [rB[r], gB[g], bB[b]]
 
       for (let s = 0; s < 3; s++) {
-        const ch = channels[s]
-        const intensity = ch.value / 255
+        const v = vals[s]
+        const intensity = v / 255
+        const alpha = 0.65 + 0.35 * intensity
         const barH = Math.max(4, Math.round((0.4 + 0.6 * intensity) * maxH))
-        const bx = cx + padX + s * (subW + gap)
-        const by = cy + cellSize - 1 - barH
+        const barX = cx + padX + s * (subW + gap)
+        const barY = cy + cellSize - 1 - barH
 
-        ctx.fillStyle = ch.color
-        ctx.globalAlpha = 0.65 + 0.35 * intensity
-        ctx.fillRect(bx, by, subW, barH)
+        // Blend bar color with alpha onto background
+        const cr = cR[s], cg = cG[s], cb = cB[s]
+        const blendR = (cr * alpha + BG_R * (1 - alpha)) | 0
+        const blendG = (cg * alpha + BG_G * (1 - alpha)) | 0
+        const blendB = (cb * alpha + BG_B * (1 - alpha)) | 0
+        const barPixel = (255 << 24) | (blendB << 16) | (blendG << 8) | blendR
 
+        // Draw the bar directly into the buffer
+        const xEnd = Math.min(barX + subW, canvasW)
+        const yEnd = Math.min(barY + barH, canvasH)
+        for (let y = barY; y < yEnd; y++) {
+          const rowOff = y * canvasW
+          for (let x = barX; x < xEnd; x++) {
+            buf32[rowOff + x] = barPixel
+          }
+        }
+
+        // Glow pass — wider bar with lower alpha, composited on existing content
         if (intensity > 0.25) {
-          ctx.globalAlpha = (intensity - 0.25) * 0.6
-          ctx.fillRect(bx - 1, by, subW + 2, barH)
+          const glowAlpha = (intensity - 0.25) * 0.6
+          const invGlow = 1 - glowAlpha
+          const gx0 = Math.max(barX - 1, 0)
+          const gx1 = Math.min(barX + subW + 1, canvasW)
+          for (let y = barY; y < yEnd; y++) {
+            const rowOff = y * canvasW
+            for (let x = gx0; x < gx1; x++) {
+              const idx = (rowOff + x) * 4
+              buf8[idx]     = (cr * glowAlpha + buf8[idx]     * invGlow) | 0
+              buf8[idx + 1] = (cg * glowAlpha + buf8[idx + 1] * invGlow) | 0
+              buf8[idx + 2] = (cb * glowAlpha + buf8[idx + 2] * invGlow) | 0
+            }
+          }
         }
       }
-      ctx.globalAlpha = 1.0
     }
   }
 
-  ctx.fillStyle = 'rgba(0,0,0,0.06)'
+  // Scanlines — darken every other cell row
   for (let y = 0; y < canvasH; y += cellSize * 2) {
-    ctx.fillRect(0, y + cellSize - 1, canvasW, 1)
+    const slY = y + cellSize - 1
+    if (slY >= canvasH) break
+    const rowOff = slY * canvasW
+    for (let x = 0; x < canvasW; x++) {
+      const i = (rowOff + x) * 4
+      buf8[i]     = (buf8[i] * 0.94) | 0
+      buf8[i + 1] = (buf8[i + 1] * 0.94) | 0
+      buf8[i + 2] = (buf8[i + 2] * 0.94) | 0
+    }
   }
+
+  ctx.putImageData(_crtImageData, 0, 0)
 }
 
 /**
@@ -107,8 +180,6 @@ function createVideoElement(url) {
     setTimeout(done, 3000)
   })
 }
-
-const BEZEL_GOLD = '#C4962A'
 
 function SpeakerPanel({ side }) {
   return (
@@ -253,8 +324,17 @@ export default function CrtBackground() {
       // Attach ended listener to all videos
       allVideos.forEach(v => v.addEventListener('ended', onVideoEnded))
 
+      const FRAME_INTERVAL = 1000 / 24  // 24 fps
+      let lastFrameTime = 0
+
       function render(t) {
         if (cancelled) return
+
+        if (t - lastFrameTime < FRAME_INTERVAL) {
+          frameId = requestAnimationFrame(render)
+          return
+        }
+        lastFrameTime = t
 
         const w = canvas.width
         const h = canvas.height
