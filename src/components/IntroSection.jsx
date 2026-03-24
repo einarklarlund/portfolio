@@ -5,14 +5,6 @@ import ScrollArrow from './ScrollArrow'
 
 export default function IntroSection() {
   const sectionRef = useRef(null)
-  const { scrollYProgress } = useScroll({
-    target: sectionRef,
-    offset: ['start start', 'end start'],
-  })
-
-  // Fade out as user scrolls past (last 40% of the section leaving)
-  const opacity = useTransform(scrollYProgress, [0, 0.6], [1, 0])
-  const scale = useTransform(scrollYProgress, [0.2, 0.6], [1, 0.9])
 
   return (
     <motion.section
@@ -25,7 +17,7 @@ export default function IntroSection() {
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        background: '#37353E',
+        background: '#D3DAD9',
         color: '#D3DAD9',
       }}
     >

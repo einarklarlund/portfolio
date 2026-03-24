@@ -225,15 +225,12 @@ export default function CrtScreen() {
       function drawVideoContain(octx, video, w, h) {
         octx.fillStyle = BG
         octx.fillRect(0, 0, w, h)
-        const vr = video.videoWidth / video.videoHeight
-        const cr = w / h
-        let dw, dh, dx, dy
-        if (vr > cr) {
-          dw = w; dh = w / vr; dx = 0; dy = (h - dh) / 2
-        } else {
-          dh = h; dw = h * vr; dx = (w - dw) / 2; dy = 0
-        }
-        octx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight, dx, dy, dw, dh)
+        if (video.videoWidth === 0 || video.videoHeight === 0) return
+        // Scale to full height, crop sides to fit 4:3 canvas
+        const scale = h / video.videoHeight
+        const dw = video.videoWidth * scale
+        const dx = (w - dw) / 2
+        octx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight, dx, 0, dw, h)
       }
 
       function desaturatePixels(data) {
@@ -249,8 +246,8 @@ export default function CrtScreen() {
       function drawChannelText(octx, w, idx) {
         const name = VIDEO_SOURCES[idx].channel
         const num = String(channelNumbers[idx])
-        const numSize = Math.max(36, Math.round(w * 0.065))
-        const nameSize = Math.max(28, Math.round(w * 0.04))
+        const numSize = Math.max(48, Math.round(w * 0.13))
+        const nameSize = Math.max(36, Math.round(w * 0.08))
         const x = w - 20
         const y = 20
         octx.save()

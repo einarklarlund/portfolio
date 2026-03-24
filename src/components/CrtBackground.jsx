@@ -47,8 +47,9 @@ export default function CrtBackground() {
       style={{
         position: 'absolute',
         top: 0,
-        left: 0,
-        width: '100%',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: 'calc((100vh - 150px) * 4 / 3 + 144px)',
         height: '100%',
         zIndex: 0,
         opacity: visible ? 1 : 0,
