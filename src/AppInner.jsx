@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import Dither from './components/Dither/Dither'
 import { useDitherContext } from './components/DitherContext'
 import IntroSection from './components/IntroSection/IntroSection'
@@ -7,6 +8,19 @@ import WorkExperienceSection from './components/WorkExperienceSection/WorkExperi
 
 export default function AppInner() {
   const { config } = useDitherContext()
+
+  // React and R3F call performance.measure() on every frame in development builds.
+  // The browser never frees these automatically, causing ~12 MB/minute of accumulation
+  // in dev mode. Periodically clear them. This has no effect in production builds.
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      const id = setInterval(() => {
+        performance.clearMarks()
+        performance.clearMeasures()
+      }, 10_000)
+      return () => clearInterval(id)
+    }
+  }, [])
   return (
     <main>
       <div style={{ position: 'fixed', inset: 0, zIndex: 0 }}>

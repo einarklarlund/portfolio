@@ -27,7 +27,14 @@ export function useWaveColorTransition(sectionRef, sectionColor, prevColor) {
         ? lerp(prevColor, sectionColor, (scrollY - rangeStart) / vh)
         : sectionColor
 
-      setDitherConfig(prev => ({ ...prev, waveColor }))
+      setDitherConfig(prev => {
+        // Bail out early if color hasn't changed — avoids re-rendering all context
+        // consumers (and re-allocating THREE.Color objects) on every scroll event.
+        const [pr, pg, pb] = prev.waveColor
+        const [nr, ng, nb] = waveColor
+        if (pr === nr && pg === ng && pb === nb) return prev
+        return { ...prev, waveColor }
+      })
     }
 
     window.addEventListener('scroll', handleScroll, { passive: true })

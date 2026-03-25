@@ -51,7 +51,7 @@ const CRT_LUT = (() => {
   return { rR, rG, rB, gR, gG, gB, bR, bG, bB }
 })()
 
-// Reusable ImageData to avoid allocation each frame
+// Reusable ImageData to avoid allocation each frame (scoped per-effect run via closure)
 let _crtImageData = null
 let _crtBuf = null
 
@@ -158,28 +158,6 @@ function renderCRT(ctx, pixels, srcW, srcH, canvasW, canvasH, cellSize) {
   ctx.putImageData(_crtImageData, 0, 0)
 }
 
-/**
- * Creates a hidden <video> element for the given URL.
- * Returns a promise that resolves once metadata is loaded.
- */
-function createVideoElement(url) {
-  return new Promise((resolve) => {
-    const video = document.createElement('video')
-    video.src = url
-    video.muted = true
-    video.playsInline = true
-    video.preload = 'metadata'
-    video.crossOrigin = 'anonymous'
-    video.style.display = 'none'
-    document.body.appendChild(video)
-    // Resolve on metadata (fires on mobile) or after a short timeout as fallback
-    const done = () => resolve(video)
-    video.addEventListener('loadedmetadata', done, { once: true })
-    video.addEventListener('error', done, { once: true })
-    setTimeout(done, 3000)
-  })
-}
-
 export default function CrtScreen() {
   const canvasRef = useRef(null)
   const screenRef = useRef(null)
@@ -194,6 +172,12 @@ export default function CrtScreen() {
     let frameId = 0
     let cancelled = false
 
+    // Track ALL created video elements immediately (not after Promise.all resolves)
+    // so cleanup works even if component unmounts during loading.
+    const allCreatedVideos = []
+    // Set once videos load — stored here so cleanup can removeEventListener.
+    let onVideoEnded = null
+
     function resize() {
       const rect = screen.getBoundingClientRect()
       canvas.width = Math.round(rect.width)
@@ -203,10 +187,22 @@ export default function CrtScreen() {
     window.addEventListener('resize', resize)
 
     // Load all videos, then start the render loop
-    const videoElements = []
-    Promise.all(VIDEO_SOURCES.map(s => createVideoElement(s.url))).then((allVideos) => {
+    Promise.all(VIDEO_SOURCES.map(s => new Promise((resolve) => {
+      const video = document.createElement('video')
+      video.src = s.url
+      video.muted = true
+      video.playsInline = true
+      video.preload = 'metadata'
+      video.crossOrigin = 'anonymous'
+      video.style.display = 'none'
+      document.body.appendChild(video)
+      allCreatedVideos.push(video) // Track immediately for cleanup
+      const done = () => resolve(video)
+      video.addEventListener('loadedmetadata', done, { once: true })
+      video.addEventListener('error', done, { once: true })
+      setTimeout(done, 3000)
+    }))).then((allVideos) => {
       if (cancelled) return
-      videoElements.push(...allVideos)
 
       let vidIndex = Math.floor(Math.random() * allVideos.length)
       let currentVideo = allVideos[vidIndex]
@@ -268,7 +264,7 @@ export default function CrtScreen() {
       currentVideo.play().catch(() => {})
 
       // When a video ends, begin channel-flip transition
-      function onVideoEnded() {
+      onVideoEnded = function onVideoEnded() {
         if (cancelled || transState !== 'playing') return
         transState = 'desat'
         transStart = performance.now()
@@ -364,11 +360,18 @@ export default function CrtScreen() {
       cancelled = true
       cancelAnimationFrame(frameId)
       window.removeEventListener('resize', resize)
-      videoElements.forEach(v => {
+      // Clean up all videos including those still loading (allCreatedVideos
+      // is populated immediately when each element is created, before Promise.all resolves)
+      allCreatedVideos.forEach(v => {
+        if (onVideoEnded) v.removeEventListener('ended', onVideoEnded)
         v.pause()
         v.removeAttribute('src')
+        v.load() // Required: forces browser to release buffered media data
         v.remove()
       })
+      // Allow GC of the module-level ImageData buffer (sized to this canvas)
+      _crtImageData = null
+      _crtBuf = null
     }
   }, [])
 

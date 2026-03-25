@@ -1,5 +1,5 @@
 /* eslint-disable react/no-unknown-property */
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useMemo } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { EffectComposer } from '@react-three/postprocessing'
 import * as THREE from 'three'
@@ -162,6 +162,13 @@ export default function DitheredWaves({
     }
   }, [size, gl])
 
+  // Only reallocate THREE.Color when the actual RGB values change, not on every render.
+  // Without this, a new Color is created on every scroll event (context re-render).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const waveColorObj = useMemo(() => new THREE.Color(...waveColor).convertSRGBToLinear(), [waveColor[0], waveColor[1], waveColor[2]])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const bgColorObj = useMemo(() => new THREE.Color(...backgroundColor).convertSRGBToLinear(), [backgroundColor[0], backgroundColor[1], backgroundColor[2]])
+
   useFrame(({ clock }) => {
     const u = waveUniformsRef.current
 
@@ -189,6 +196,7 @@ export default function DitheredWaves({
       u.sdfFalloffs.value[i] = sdf.falloff ?? 0.1
       u.sdfIntensities.value[i] = sdf.intensity ?? 0.75
     })
+
   })
 
   const handlePointerMove = e => {
@@ -213,8 +221,8 @@ export default function DitheredWaves({
         <RetroEffect
           colorNum={colorNum}
           pixelSize={pixelSize}
-          waveColor={new THREE.Color(...waveColor).convertSRGBToLinear()}
-          backgroundColor={new THREE.Color(...backgroundColor).convertSRGBToLinear()}
+          waveColor={waveColorObj}
+          backgroundColor={bgColorObj}
         />
       </EffectComposer>
 
