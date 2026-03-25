@@ -2,26 +2,25 @@ import { motion } from 'framer-motion'
 import { useRef, useEffect, useState } from 'react'
 import CrtBackground from './CrtBackground'
 import ScrollArrow from './ScrollArrow'
-import Dither from './Dither'
+import { useDitherContext } from './DitherContext'
 
 export default function IntroSection() {
   const sectionRef = useRef(null)
   const crtRef = useRef(null)
   const [box, setBox] = useState(null)
+  const { setDitherConfig } = useDitherContext()
 
   useEffect(() => {
     const measure = () => {
       const crtEl = crtRef.current
-      const secEl = sectionRef.current
-      if (!crtEl || !secEl) return
+      if (!crtEl) return
       const crtRect = crtEl.getBoundingClientRect()
-      const secRect = secEl.getBoundingClientRect()
       setBox({
         type: 'box',
-        x: (crtRect.left - secRect.left + crtRect.width / 2) / secRect.width,
-        y: (crtRect.top - secRect.top + crtRect.height / 2) / secRect.height,
-        width: crtRect.width / secRect.width,
-        height: crtRect.height / secRect.height,
+        x: (crtRect.left + crtRect.width / 2) / window.innerWidth,
+        y: (crtRect.top + crtRect.height / 2) / window.innerHeight,
+        width: crtRect.width / window.innerWidth,
+        height: crtRect.height / window.innerHeight,
         falloff: 0.03,
         intensity: 0.8,
       })
@@ -30,8 +29,20 @@ export default function IntroSection() {
     const ro = new ResizeObserver(measure)
     if (crtRef.current) ro.observe(crtRef.current)
     if (sectionRef.current) ro.observe(sectionRef.current)
-    return () => ro.disconnect()
+    window.addEventListener('scroll', measure)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('scroll', measure)
+    }
   }, [])
+
+  useEffect(() => {
+    setDitherConfig({
+      waveColor: [0.216, 0.208, 0.243],
+      backgroundColor: [0.827, 0.855, 0.851],
+      sdfs: box ? [box] : [],
+    })
+  }, [box, setDitherConfig])
 
   return (
     <motion.section
@@ -44,22 +55,10 @@ export default function IntroSection() {
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        background: '#D3DAD9',
+        background: 'transparent',
         color: '#D3DAD9',
       }}
     >
-      <Dither
-        waveColor={[0.216,0.208,0.243]}
-        backgroundColor={[0.827,0.855,0.851]}
-        disableAnimation={false}
-        enableMouseInteraction={false}
-        mouseRadius={0.1}
-        colorNum={4}
-        waveAmplitude={0.5}
-        waveFrequency={2}
-        waveSpeed={0.025}
-        sdfs={box ? [box] : []}
-      />
       <CrtBackground ref={crtRef} />
 
       {/* Header — centered on top screen edge */}
