@@ -21,7 +21,7 @@ export default function IntroSection() {
         y: (crtRect.top - secRect.top + crtRect.height / 2) / secRect.height,
         width: crtRect.width / secRect.width,
         height: crtRect.height / secRect.height,
-        falloff: 0.08,
+        falloff: 0.03,
       })
     }
     measure()
@@ -48,12 +48,13 @@ export default function IntroSection() {
     >
       <Dither
         waveColor={[0.216,0.208,0.243]}
+        backgroundColor={[0.827,0.855,0.851]}
         disableAnimation={false}
         enableMouseInteraction={false}
         mouseRadius={0.1}
-        colorNum={30}
-        waveAmplitude={0.75}
-        waveFrequency={1}
+        colorNum={4}
+        waveAmplitude={0.5}
+        waveFrequency={2}
         waveSpeed={0.025}
         box={box}
       />
