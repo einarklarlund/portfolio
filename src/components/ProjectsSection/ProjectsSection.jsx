@@ -2,6 +2,7 @@ import { useState, useRef, useMemo } from 'react'
 import { motion, useInView, LayoutGroup } from 'framer-motion'
 import ScrollArrow from '../ScrollArrow'
 import ProjectCard from './ProjectCard'
+import WoodPanelFrame from '../WoodPanelFrame/WoodPanelFrame'
 import { useWaveColorTransition } from '../../hooks/useWaveColorTransition'
 
 const BASE = import.meta.env.BASE_URL
@@ -119,6 +120,7 @@ export default function ProjectsSection() {
   )
 
   return (
+    <WoodPanelFrame>
     <section id="projects" ref={sectionRef} style={{ position: 'relative', minHeight: '100vh', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6rem 2rem', color: '#37353E' }}>
       <motion.div initial={{ opacity: 0, y: 40 }} animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }} transition={{ duration: 0.7, ease: 'easeOut' }} style={{ width: '100%', maxWidth: '900px', textAlign: 'center' }}>
         <h2 ref={headingRef} style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 700, letterSpacing: '-0.02em', marginBottom: '3rem' }}>
@@ -136,5 +138,6 @@ export default function ProjectsSection() {
         <ScrollArrow label="skills" targetId="skills" style={{ color: '#44444E' }} />
       </motion.div>
     </section>
+    </WoodPanelFrame>
   )
 }
