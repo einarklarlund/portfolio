@@ -2,8 +2,12 @@ import { useState, useRef, useMemo } from 'react'
 import { motion, useInView, LayoutGroup } from 'framer-motion'
 import ScrollArrow from '../ScrollArrow'
 import ProjectCard from './ProjectCard'
+import { useWaveColorTransition } from '../../hooks/useWaveColorTransition'
 
 const BASE = import.meta.env.BASE_URL
+
+const SECTION_COLOR = [0.443, 0.353, 0.353]
+const PREV_COLOR    = [0.216, 0.208, 0.243]
 
 const PROJECTS = [
   {
@@ -97,6 +101,7 @@ export default function ProjectsSection() {
   const sectionRef = useRef(null)
   const headingRef = useRef(null)
   const isInView = useInView(sectionRef, { amount: 0.2 })
+  useWaveColorTransition(sectionRef, SECTION_COLOR, PREV_COLOR)
 
   function handleSelect(id) {
     if (id !== null && selectedId === null && headingRef.current) {
@@ -114,7 +119,7 @@ export default function ProjectsSection() {
   )
 
   return (
-    <section id="projects" ref={sectionRef} style={{ position: 'relative', minHeight: '100vh', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6rem 2rem', background: '#715A5A', color: '#37353E' }}>
+    <section id="projects" ref={sectionRef} style={{ position: 'relative', minHeight: '100vh', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6rem 2rem', color: '#37353E' }}>
       <motion.div initial={{ opacity: 0, y: 40 }} animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }} transition={{ duration: 0.7, ease: 'easeOut' }} style={{ width: '100%', maxWidth: '900px', textAlign: 'center' }}>
         <h2 ref={headingRef} style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 700, letterSpacing: '-0.02em', marginBottom: '3rem' }}>
           Projects

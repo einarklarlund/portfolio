@@ -1,6 +1,10 @@
 import { motion, useInView } from 'framer-motion'
 import { useRef } from 'react'
 import TimelineEntry from './TimelineEntry'
+import { useWaveColorTransition } from '../../hooks/useWaveColorTransition'
+
+const SECTION_COLOR = [0.827, 0.855, 0.851]
+const PREV_COLOR    = [0.267, 0.267, 0.306]
 
 const EXPERIENCE = [
   {
@@ -53,6 +57,7 @@ const containerVariants = {
 export default function WorkExperienceSection() {
   const sectionRef = useRef(null)
   const isInView = useInView(sectionRef, { amount: 0.1 })
+  useWaveColorTransition(sectionRef, SECTION_COLOR, PREV_COLOR)
 
   return (
     <section
@@ -67,7 +72,6 @@ export default function WorkExperienceSection() {
         alignItems: 'center',
         justifyContent: 'center',
         padding: '6rem 2rem',
-        background: '#D3DAD9',
         color: '#37353E',
       }}
     >

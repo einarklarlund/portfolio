@@ -37,11 +37,11 @@ export default function IntroSection() {
   }, [])
 
   useEffect(() => {
-    setDitherConfig({
-      waveColor: [0.216, 0.208, 0.243],
+    setDitherConfig(prev => ({
+      ...prev,
       backgroundColor: [0.827, 0.855, 0.851],
       sdfs: box ? [box] : [],
-    })
+    }))
   }, [box, setDitherConfig])
 
   return (

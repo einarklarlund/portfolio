@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import CrtScreen from './CrtScreen'
-import SpeakerPanel from './SpeakerPanel'
+import SpeakerPanel from './CrtSpeakerPanel'
 
 export default function CrtBackground({ ref }) {
   const [visible, setVisible] = useState(false)

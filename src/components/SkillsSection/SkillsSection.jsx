@@ -2,6 +2,10 @@ import { motion, useInView } from 'framer-motion'
 import { useRef } from 'react'
 import ScrollArrow from '../ScrollArrow'
 import SkillGroup from './SkillGroup'
+import { useWaveColorTransition } from '../../hooks/useWaveColorTransition'
+
+const SECTION_COLOR = [0.267, 0.267, 0.306]
+const PREV_COLOR    = [0.443, 0.353, 0.353]
 
 const SOFTWARE_ENGINEERING = {
   title: 'Software Engineering',
@@ -48,6 +52,7 @@ const GAME_DEVELOPMENT = {
 export default function SkillsSection() {
   const sectionRef = useRef(null)
   const isInView = useInView(sectionRef, { amount: 0.2 })
+  useWaveColorTransition(sectionRef, SECTION_COLOR, PREV_COLOR)
 
   return (
     <section
@@ -62,7 +67,6 @@ export default function SkillsSection() {
         alignItems: 'center',
         justifyContent: 'center',
         padding: '6rem 2rem',
-        background: '#44444E',
         color: '#D3DAD9',
       }}
     >
