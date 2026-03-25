@@ -28,10 +28,13 @@ uniform float waveAmplitude;
 uniform vec2 mousePos;
 uniform int enableMouseInteraction;
 uniform float mouseRadius;
-uniform int boxEnabled;
-uniform vec2 boxCenter;
-uniform vec2 boxSize;
-uniform float boxFalloff;
+#define MAX_SDFS 8
+uniform int sdfCount;
+uniform int sdfTypes[MAX_SDFS];
+uniform vec2 sdfCenters[MAX_SDFS];
+uniform vec3 sdfSizes[MAX_SDFS];
+uniform float sdfFalloffs[MAX_SDFS];
+uniform float sdfIntensities[MAX_SDFS];
 
 vec4 mod289(vec4 x) { return x - floor(x * (1.0/289.0)) * 289.0; }
 vec4 permute(vec4 x) { return mod289(((x * 34.0) + 1.0) * x); }
@@ -97,15 +100,20 @@ void main() {
     float effect = 1.0 - smoothstep(0.0, mouseRadius, dist);
     f -= 0.5 * effect;
   }
-  if (boxEnabled == 1) {
-    vec2 coordUV = gl_FragCoord.xy / resolution.xy;
-    coordUV.y = 1.0 - coordUV.y;
-    vec2 d = abs(coordUV - boxCenter) - boxSize * 0.5;
-    float sdf = length(max(d, 0.0)) + min(max(d.x, d.y), 0.0);
-    float boxVal = 1.0 - smoothstep(0.0, max(boxFalloff, 0.0001), max(sdf, 0.0));
-    float boxIntensity = 0.75;
-    boxVal *= boxIntensity;
-    f = clamp(f + boxVal, 0.0, 1.0);
+  vec2 coordUV = gl_FragCoord.xy / resolution.xy;
+  coordUV.y = 1.0 - coordUV.y;
+  for (int i = 0; i < MAX_SDFS; i++) {
+    if (i >= sdfCount) break;
+    float sdf;
+    if (sdfTypes[i] == 0) {
+      vec2 d = abs(coordUV - sdfCenters[i]) - sdfSizes[i].xy * 0.5;
+      sdf = length(max(d, 0.0)) + min(max(d.x, d.y), 0.0);
+    } else {
+      sdf = length(coordUV - sdfCenters[i]) - sdfSizes[i].z;
+    }
+    float sdfVal = 1.0 - smoothstep(0.0, max(sdfFalloffs[i], 0.0001), max(sdf, 0.0));
+    sdfVal *= sdfIntensities[i];
+    f = clamp(f + sdfVal, 0.0, 1.0);
   }
   gl_FragColor = vec4(vec3(f), 1.0);
 }
@@ -204,12 +212,13 @@ function DitheredWaves({
   disableAnimation,
   enableMouseInteraction,
   mouseRadius,
-  box,
+  sdfs = [],
 }) {
   const mesh = useRef(null);
   const mouseRef = useRef(new THREE.Vector2());
   const { viewport, size, gl } = useThree();
 
+  const MAX_SDFS = 8;
   const waveUniformsRef = useRef({
     time: new THREE.Uniform(0),
     resolution: new THREE.Uniform(new THREE.Vector2(0, 0)),
@@ -219,10 +228,12 @@ function DitheredWaves({
     mousePos: new THREE.Uniform(new THREE.Vector2(0, 0)),
     enableMouseInteraction: new THREE.Uniform(enableMouseInteraction ? 1 : 0),
     mouseRadius: new THREE.Uniform(mouseRadius),
-    boxEnabled: new THREE.Uniform(box ? 1 : 0),
-    boxCenter: new THREE.Uniform(new THREE.Vector2(box?.x ?? 0.5, box?.y ?? 0.5)),
-    boxSize: new THREE.Uniform(new THREE.Vector2(box?.width ?? 0.3, box?.height ?? 0.2)),
-    boxFalloff: new THREE.Uniform(box?.falloff ?? 0.1),
+    sdfCount: new THREE.Uniform(0),
+    sdfTypes: new THREE.Uniform(new Array(MAX_SDFS).fill(0)),
+    sdfCenters: new THREE.Uniform(Array.from({ length: MAX_SDFS }, () => new THREE.Vector2())),
+    sdfSizes: new THREE.Uniform(Array.from({ length: MAX_SDFS }, () => new THREE.Vector3())),
+    sdfFalloffs: new THREE.Uniform(new Array(MAX_SDFS).fill(0)),
+    sdfIntensities: new THREE.Uniform(new Array(MAX_SDFS).fill(0)),
   });
 
   useEffect(() => {
@@ -253,12 +264,15 @@ function DitheredWaves({
       u.mousePos.value.copy(mouseRef.current);
     }
 
-    u.boxEnabled.value = box ? 1 : 0;
-    if (box) {
-      u.boxCenter.value.set(box.x, box.y);
-      u.boxSize.value.set(box.width, box.height);
-      u.boxFalloff.value = box.falloff ?? 0.1;
-    }
+    const activeSdfs = sdfs ?? [];
+    u.sdfCount.value = Math.min(activeSdfs.length, MAX_SDFS);
+    activeSdfs.slice(0, MAX_SDFS).forEach((sdf, i) => {
+      u.sdfTypes.value[i] = sdf.type === 'circle' ? 1 : 0;
+      u.sdfCenters.value[i].set(sdf.x, sdf.y);
+      u.sdfSizes.value[i].set(sdf.width ?? 0, sdf.height ?? 0, sdf.radius ?? 0);
+      u.sdfFalloffs.value[i] = sdf.falloff ?? 0.1;
+      u.sdfIntensities.value[i] = sdf.intensity ?? 0.75;
+    });
   });
 
   const handlePointerMove = e => {
@@ -312,7 +326,7 @@ export default function Dither({
   disableAnimation = false,
   enableMouseInteraction = true,
   mouseRadius = 1,
-  box = null,
+  sdfs = [],
 }) {
   return (
     <Canvas
@@ -332,7 +346,7 @@ export default function Dither({
         disableAnimation={disableAnimation}
         enableMouseInteraction={enableMouseInteraction}
         mouseRadius={mouseRadius}
-        box={box}
+        sdfs={sdfs}
       />
     </Canvas>
   );

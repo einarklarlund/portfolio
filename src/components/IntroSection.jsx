@@ -17,11 +17,13 @@ export default function IntroSection() {
       const crtRect = crtEl.getBoundingClientRect()
       const secRect = secEl.getBoundingClientRect()
       setBox({
+        type: 'box',
         x: (crtRect.left - secRect.left + crtRect.width / 2) / secRect.width,
         y: (crtRect.top - secRect.top + crtRect.height / 2) / secRect.height,
         width: crtRect.width / secRect.width,
         height: crtRect.height / secRect.height,
         falloff: 0.03,
+        intensity: 0.8,
       })
     }
     measure()
@@ -56,7 +58,7 @@ export default function IntroSection() {
         waveAmplitude={0.5}
         waveFrequency={2}
         waveSpeed={0.025}
-        box={box}
+        sdfs={box ? [box] : []}
       />
       <CrtBackground ref={crtRef} />
 
