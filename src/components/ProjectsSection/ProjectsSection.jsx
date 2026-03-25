@@ -1,6 +1,8 @@
-import { useState, useRef, useEffect, useMemo } from 'react'
-import { motion, AnimatePresence, useInView, LayoutGroup } from 'framer-motion'
-import ScrollArrow from './ScrollArrow'
+import { useState, useRef, useMemo } from 'react'
+import { motion, useInView, LayoutGroup } from 'framer-motion'
+import ScrollArrow from '../ScrollArrow'
+import ProjectCard from './ProjectCard'
+
 const BASE = import.meta.env.BASE_URL
 
 const PROJECTS = [
@@ -89,144 +91,6 @@ const PROJECTS = [
     videos: [],
   },
 ]
-
-function ProjectThumbnail({ color, videos, active }) {
-  const [vidIndex, setVidIndex] = useState(0)
-  const videoRef = useRef(null)
-  const hasVideos = videos && videos.length > 0
-
-  useEffect(() => {
-    if (!videoRef.current) return
-    if (active && hasVideos) {
-      videoRef.current.play().catch(() => {})
-    } else {
-      videoRef.current.pause()
-      videoRef.current.currentTime = 0
-      setVidIndex(0)
-    }
-  }, [active, hasVideos, vidIndex])
-
-  const handleEnded = () => {
-    if (!hasVideos) return
-    setVidIndex((prev) => (prev + 1) % videos.length)
-  }
-
-  return (
-    <div
-      style={{
-        width: '100%', aspectRatio: '16/9',
-        background: `linear-gradient(135deg, ${color}22 0%, ${color}44 100%)`,
-        borderRadius: '8px', overflow: 'hidden', position: 'relative',
-        zIndex: 1
-      }}
-    >
-      {/* Background grid shown while metadata loads or if no video */}
-      <div
-        style={{
-          position: 'absolute', inset: 0, zIndex: -1,
-          display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
-          gridTemplateRows: 'repeat(3, 1fr)', gap: '1px', padding: '1px',
-        }}
-      >
-        {Array.from({ length: 12 }).map((_, i) => (
-          <div key={i} style={{ background: `${color}${(15 + i * 3).toString(16).padStart(2, '0')}`, borderRadius: '2px' }} />
-        ))}
-      </div>
-
-      {hasVideos && (
-        <video
-          ref={videoRef}
-          src={videos[vidIndex]}
-          muted playsInline preload="metadata"
-          onEnded={handleEnded}
-          style={{
-            position: 'absolute', inset: 0, width: '100%', height: '100%',
-            objectFit: 'cover', borderRadius: '8px',
-          }}
-        />
-      )}
-
-      {/* Fallback hover effect for projects without videos */}
-      {!hasVideos && (
-        <div
-          style={{
-            position: 'absolute', inset: 0, opacity: active ? 1 : 0, transition: 'opacity 0.3s',
-            background: `radial-gradient(circle at ${active ? '60% 40%' : '50% 50%'}, ${color}88, ${color}22)`,
-          }}
-        >
-          <motion.div
-            animate={active ? { x: [0, 30, -20, 10, 0], y: [0, -15, 25, -10, 0] } : {}}
-            transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
-            style={{
-              position: 'absolute', top: '50%', left: '50%', width: '20px', height: '20px',
-              marginLeft: '-10px', marginTop: '-10px', background: color, borderRadius: '50%',
-              boxShadow: `0 0 20px ${color}, 0 0 40px ${color}66`,
-            }}
-          />
-          <motion.div
-            animate={active ? { x: [0, -40, 20, -30, 0], y: [0, 20, -30, 15, 0] } : {}}
-            transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
-            style={{
-              position: 'absolute', top: '30%', left: '30%', width: '12px', height: '12px',
-              background: `${color}aa`, borderRadius: '50%', boxShadow: `0 0 15px ${color}44`,
-            }}
-          />
-        </div>
-      )}
-    </div>
-  )
-}
-
-function ProjectCard({ project, isSelected, onSelect, selectedId }) {
-  const [hovered, setHovered] = useState(false)
-  const isOther = selectedId !== null && !isSelected
-  const active = hovered || isSelected
-
-  return (
-    <motion.div
-      layout
-      onClick={() => onSelect(isSelected ? null : project.id)}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        cursor: 'pointer', position: 'relative',
-        flex: isSelected ? '1 1 100%' : '1 1 calc(50% - 1rem)',
-        maxWidth: isSelected ? '700px' : 'calc(50% - 1rem)',
-      }}
-      animate={{ opacity: isOther ? 0.3 : 1, scale: isOther ? 0.9 : 1, filter: isOther ? 'blur(2px)' : 'blur(0px)' }}
-      transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
-    >
-      <ProjectThumbnail color={project.color} videos={project.videos} active={active} />
-      <motion.p style={{ marginTop: '0.75rem', fontSize: '0.95rem', fontWeight: 600, color: '#37353E' }}>
-        {project.title}
-      </motion.p>
-      <AnimatePresence>
-        {isSelected && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-            style={{ overflow: 'hidden' }}
-          >
-            <div style={{ padding: '1rem 0' }}>
-              <p style={{ fontSize: '0.9rem', color: '#44444E', lineHeight: 1.6, marginBottom: '1rem' }} onClick={(e) => e.stopPropagation()}>
-                {project.description}
-              </p>
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                {project.tech.map((t) => (
-                  <span key={t} style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem', borderRadius: '999px', background: `${project.color}18`, border: `1px solid ${project.color}33`, color: project.color }}>
-                    {t}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
-  )
-}
 
 export default function ProjectsSection() {
   const [selectedId, setSelectedId] = useState(null)

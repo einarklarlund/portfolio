@@ -1,8 +1,8 @@
 import { motion } from 'framer-motion'
 import { useRef, useEffect, useState } from 'react'
 import CrtBackground from './CrtBackground'
-import ScrollArrow from './ScrollArrow'
-import { useDitherContext } from './DitherContext'
+import ScrollArrow from '../ScrollArrow'
+import { useDitherContext } from '../DitherContext'
 
 export default function IntroSection() {
   const sectionRef = useRef(null)

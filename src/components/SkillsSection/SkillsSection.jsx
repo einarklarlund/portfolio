@@ -1,6 +1,7 @@
 import { motion, useInView } from 'framer-motion'
 import { useRef } from 'react'
-import ScrollArrow from './ScrollArrow'
+import ScrollArrow from '../ScrollArrow'
+import SkillGroup from './SkillGroup'
 
 const SOFTWARE_ENGINEERING = {
   title: 'Software Engineering',
@@ -42,119 +43,6 @@ const GAME_DEVELOPMENT = {
       items: ['Unity (C#, 3+ years)', 'Kinematics', 'FPS Combat', 'Stateful dialogue', 'Persistent saving', 'UI/UX', 'Felgo/QML'],
     },
   ],
-}
-
-const containerVariants = {
-  hidden: {},
-  show: {
-    transition: {
-      staggerChildren: 0.12,
-    },
-  },
-}
-
-const categoryVariants = {
-  hidden: { opacity: 0, y: 28 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } },
-}
-
-const skillVariants = {
-  hidden: { opacity: 0, scale: 0.85 },
-  show: { opacity: 1, scale: 1, transition: { duration: 0.35, ease: 'easeOut' } },
-}
-
-function SkillCategory({ category, items }) {
-  return (
-    <motion.div variants={categoryVariants} style={{ textAlign: 'center' }}>
-      <p
-        style={{
-          fontSize: '0.7rem',
-          letterSpacing: '0.2em',
-          textTransform: 'uppercase',
-          color: '#715A5A',
-          marginBottom: '1rem',
-          fontWeight: 600,
-        }}
-      >
-        {category}
-      </p>
-
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="show"
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '0.5rem',
-          justifyContent: 'center',
-        }}
-      >
-        {items.map((skill) => (
-          <motion.span
-            key={skill}
-            variants={skillVariants}
-            style={{
-              fontSize: '0.88rem',
-              fontWeight: 500,
-              padding: '0.4rem 0.9rem',
-              borderRadius: '999px',
-              background: 'rgba(255,255,255,0.08)',
-              border: '1px solid rgba(255,255,255,0.15)',
-              color: '#D3DAD9',
-              letterSpacing: '0.01em',
-            }}
-          >
-            {skill}
-          </motion.span>
-        ))}
-      </motion.div>
-    </motion.div>
-  )
-}
-
-function SkillGroup({ group, isInView }) {
-  return (
-    <div style={{ textAlign: 'center' }}>
-      <h3
-        style={{
-          fontSize: 'clamp(1.2rem, 3vw, 1.6rem)',
-          fontWeight: 700,
-          letterSpacing: '-0.01em',
-          marginBottom: '0.5rem',
-          color: '#D3DAD9',
-        }}
-      >
-        {group.title}
-      </h3>
-      <p
-        style={{
-          fontSize: '0.85rem',
-          color: '#715A5A',
-          lineHeight: 1.6,
-          maxWidth: '550px',
-          margin: '0 auto 2.5rem',
-        }}
-      >
-        {group.subtitle}
-      </p>
-
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate={isInView ? 'show' : 'hidden'}
-        style={{
-          display: 'grid',
-          gridTemplateColumns: `repeat(auto-fit, minmax(200px, 1fr))`,
-          gap: '3rem 2rem',
-        }}
-      >
-        {group.categories.map((cat) => (
-          <SkillCategory key={cat.category} category={cat.category} items={cat.items} />
-        ))}
-      </motion.div>
-    </div>
-  )
 }
 
 export default function SkillsSection() {
