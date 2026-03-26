@@ -92,10 +92,12 @@ void main() {
   uv -= 0.5;
   uv.x *= resolution.x / resolution.y;
 
-  // Displace noise lookup by the persistent velocity field
+  // Displace noise lookup by the persistent velocity/pressure field
   if (enableVelocityMap == 1) {
     vec2 screenUV = gl_FragCoord.xy / resolution.xy;
-    uv -= texture2D(velocityMap, screenUV).rg;
+    vec4 vel = texture2D(velocityMap, screenUV);
+    uv -= vel.rg;  // swirl: trails left by cursor movement
+    uv -= vel.ba;  // pressure: smoke parted outward from cursor position
   }
 
   float f = pattern(uv);
@@ -138,12 +140,14 @@ void main() {
 const velocityFragmentShader = `
 precision highp float;
 uniform sampler2D prevVelocity;
-uniform vec2 mousePos;     // pixel coords (top-left origin)
-uniform vec2 mouseDelta;   // accumulated pixel delta this frame
-uniform float mouseRadius; // noise-space radius (matches wave shader)
+uniform vec2 mousePos;       // pixel coords (top-left origin)
+uniform vec2 mouseDelta;     // accumulated pixel delta this frame
+uniform float mouseRadius;   // noise-space radius (matches wave shader)
 uniform vec2 resolution;
-uniform float waveSpeed;   // matches the wave shader's waveSpeed
-uniform float deltaTime;   // seconds since last frame
+uniform float waveSpeed;     // matches the wave shader's waveSpeed
+uniform float deltaTime;     // seconds since last frame
+uniform float pushStrength;  // steady-state noise-space displacement at rim
+uniform float pressureDecay; // per-frame pressure retention (higher = slower refill)
 varying vec2 vUv;
 
 void main() {
@@ -191,11 +195,36 @@ void main() {
 
   v += delta * falloff * 2.0;
 
-  // Clamp magnitude to prevent runaway displacement
+  // Clamp swirl magnitude to prevent runaway displacement
   float mag = length(v);
   if (mag > 0.3) v = v / mag * 0.3;
 
-  gl_FragColor = vec4(v, 0.0, 1.0);
+  // ---- Pressure / parting field (BA channels) --------------------------------
+  // Read the previous pressure, advected with the wave pattern (same src as blur)
+  vec2 p = texture2D(prevVelocity, src).ba;
+
+  // Decay — this is the "refill speed": closer to 1 = slower refill
+  p *= pressureDecay;
+
+  // Outward push: invDist falloff (smooth-clamped so no singularity at cursor).
+  // mouseRadius^2 / (dist^2 + eps^2) gives ~1 at dist=mouseRadius, rises to a
+  // cap of 5 at the centre, then tapers to zero beyond 2.5×mouseRadius.
+  float distP = length(uvAspect - mouseAspect);
+  float eps   = mouseRadius * 0.1;
+  float invDist = (mouseRadius * mouseRadius) / (distP * distP + eps * eps);
+  invDist = min(invDist, 5.0);
+  float taper   = 1.0 - smoothstep(mouseRadius * 1.5, mouseRadius * 2.5, distP);
+  vec2 pushDir  = distP < eps ? vec2(0.0) : normalize(uvAspect - mouseAspect);
+
+  // Normalise gain so that steady-state displacement at rim equals pushStrength
+  // regardless of pressureDecay. (geometric-series limit: gain / (1-decay) = strength)
+  p += pushDir * invDist * taper * pushStrength * (1.0 - pressureDecay);
+
+  // Clamp pressure magnitude
+  float pmag = length(p);
+  if (pmag > 0.5) p = p / pmag * 0.5;
+
+  gl_FragColor = vec4(v, p);
 }
 `
 
@@ -210,6 +239,8 @@ export default function DitheredWaves({
   disableAnimation,
   enableMouseInteraction,
   mouseRadius,
+  mousePushStrength = 0.15,
+  pressureDecay = 0.92,
   sdfs = [],
 }) {
   const mesh = useRef(null)
@@ -230,6 +261,8 @@ export default function DitheredWaves({
     resolution: new THREE.Uniform(new THREE.Vector2()),
     waveSpeed: new THREE.Uniform(waveSpeed),
     deltaTime: new THREE.Uniform(0),
+    pushStrength: new THREE.Uniform(0.15),
+    pressureDecay: new THREE.Uniform(0.92),
   })
 
   const MAX_SDFS = 8
@@ -328,6 +361,8 @@ export default function DitheredWaves({
       vu.mouseRadius.value = mouseRadius
       vu.waveSpeed.value = waveSpeed
       vu.deltaTime.value = disableAnimation ? 0 : delta
+      vu.pushStrength.value = mousePushStrength
+      vu.pressureDecay.value = pressureDecay
 
       renderer.setRenderTarget(write)
       renderer.render(velSceneRef.current, velCameraRef.current)
