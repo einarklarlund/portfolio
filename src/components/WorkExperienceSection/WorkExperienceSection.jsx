@@ -1,7 +1,7 @@
 import { motion, useInView } from 'framer-motion'
 import { useRef } from 'react'
 import TimelineEntry from './TimelineEntry'
-import WoodPanelFrame from '../WoodPanelFrame/WoodPanelFrame'
+import BoxSdfFrame from '../BoxSdfFrame/BoxSdfFrame'
 import { useWaveColorTransition } from '../../hooks/useWaveColorTransition'
 
 const SECTION_COLOR = [0.827, 0.855, 0.851]
@@ -61,7 +61,7 @@ export default function WorkExperienceSection() {
   useWaveColorTransition(sectionRef, SECTION_COLOR, PREV_COLOR)
 
   return (
-    <WoodPanelFrame>
+    <BoxSdfFrame>
     <section
       id="work-experience"
       ref={sectionRef}
@@ -114,6 +114,6 @@ export default function WorkExperienceSection() {
         </motion.div>
       </motion.div>
     </section>
-    </WoodPanelFrame>
+    </BoxSdfFrame>
   )
 }

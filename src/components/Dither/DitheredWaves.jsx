@@ -104,9 +104,15 @@ void main() {
     if (i >= sdfCount) break;
     float sdf;
     if (sdfTypes[i] == 0) {
+      // Filled box: negative inside, positive outside; max() clips interior to give full fill
       vec2 d = abs(coordUV - sdfCenters[i]) - sdfSizes[i].xy * 0.5;
       sdf = length(max(d, 0.0)) + min(max(d.x, d.y), 0.0);
+    } else if (sdfTypes[i] == 2) {
+      // Empty box outline: abs(box SDF) is 0 at the edge, positive on both sides
+      vec2 d = abs(coordUV - sdfCenters[i]) - sdfSizes[i].xy * 0.5;
+      sdf = abs(length(max(d, 0.0)) + min(max(d.x, d.y), 0.0));
     } else {
+      // Circle
       sdf = length(coordUV - sdfCenters[i]) - sdfSizes[i].z;
     }
     float sdfVal = 1.0 - smoothstep(0.0, max(sdfFalloffs[i], 0.0001), max(sdf, 0.0));
@@ -190,7 +196,7 @@ export default function DitheredWaves({
     const activeSdfs = sdfs ?? []
     u.sdfCount.value = Math.min(activeSdfs.length, MAX_SDFS)
     activeSdfs.slice(0, MAX_SDFS).forEach((sdf, i) => {
-      u.sdfTypes.value[i] = sdf.type === 'circle' ? 1 : 0
+      u.sdfTypes.value[i] = sdf.type === 'circle' ? 1 : sdf.type === 'box_outline' ? 2 : 0
       u.sdfCenters.value[i].set(sdf.x, sdf.y)
       u.sdfSizes.value[i].set(sdf.width ?? 0, sdf.height ?? 0, sdf.radius ?? 0)
       u.sdfFalloffs.value[i] = sdf.falloff ?? 0.1

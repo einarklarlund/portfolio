@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useId } from 'react'
 import CrtBackground from './CrtBackground'
 import ScrollArrow from '../ScrollArrow'
 import { useDitherContext } from '../DitherContext'
@@ -7,15 +7,19 @@ import { useDitherContext } from '../DitherContext'
 export default function IntroSection() {
   const sectionRef = useRef(null)
   const crtRef = useRef(null)
-  const [box, setBox] = useState(null)
-  const { setDitherConfig } = useDitherContext()
+  const { setDitherConfig, registerSdf, unregisterSdf } = useDitherContext()
+  const sdfId = useId()
+
+  useEffect(() => {
+    setDitherConfig(prev => ({ ...prev, backgroundColor: [0.827, 0.855, 0.851] }))
+  }, [setDitherConfig])
 
   useEffect(() => {
     const measure = () => {
       const crtEl = crtRef.current
       if (!crtEl) return
       const crtRect = crtEl.getBoundingClientRect()
-      setBox({
+      registerSdf(sdfId, {
         type: 'box',
         x: (crtRect.left + crtRect.width / 2) / window.innerWidth,
         y: (crtRect.top + crtRect.height / 2) / window.innerHeight,
@@ -33,16 +37,9 @@ export default function IntroSection() {
     return () => {
       ro.disconnect()
       window.removeEventListener('scroll', measure)
+      unregisterSdf(sdfId)
     }
-  }, [])
-
-  useEffect(() => {
-    setDitherConfig(prev => ({
-      ...prev,
-      backgroundColor: [0.827, 0.855, 0.851],
-      sdfs: box ? [box] : [],
-    }))
-  }, [box, setDitherConfig])
+  }, [sdfId, registerSdf, unregisterSdf])
 
   return (
     <motion.section

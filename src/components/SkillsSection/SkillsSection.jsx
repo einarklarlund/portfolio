@@ -2,7 +2,7 @@ import { motion, useInView } from 'framer-motion'
 import { useRef } from 'react'
 import ScrollArrow from '../ScrollArrow'
 import SkillGroup from './SkillGroup'
-import WoodPanelFrame from '../WoodPanelFrame/WoodPanelFrame'
+import BoxSdfFrame from '../BoxSdfFrame/BoxSdfFrame'
 import { useWaveColorTransition } from '../../hooks/useWaveColorTransition'
 
 const SECTION_COLOR = [0.267, 0.267, 0.306]
@@ -56,7 +56,7 @@ export default function SkillsSection() {
   useWaveColorTransition(sectionRef, SECTION_COLOR, PREV_COLOR)
 
   return (
-    <WoodPanelFrame>
+    <BoxSdfFrame>
     <section
       id="skills"
       ref={sectionRef}
@@ -124,6 +124,6 @@ export default function SkillsSection() {
         <ScrollArrow label="work experience" targetId="work-experience" style={{ color: '#715A5A' }} />
       </motion.div>
     </section>
-    </WoodPanelFrame>
+    </BoxSdfFrame>
   )
 }
