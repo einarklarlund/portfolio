@@ -28,6 +28,7 @@ uniform int enableMouseInteraction;
 uniform float mouseRadius;
 uniform sampler2D velocityMap;
 uniform int enableVelocityMap;
+uniform float pushStrength;
 #define MAX_SDFS 8
 uniform int sdfCount;
 uniform int sdfTypes[MAX_SDFS];
@@ -94,15 +95,63 @@ vec2 setupUV() {
   return uv;
 }
 
-// Displaces uv by the velocity/pressure field and returns pressure magnitude.
+// SDF helpers (mirrored from the velocity shader, operating in DOM UV space).
+float evalSdfValue(vec2 coordUV, int i) {
+  if (sdfTypes[i] == 0) {
+    vec2 d = abs(coordUV - sdfCenters[i]) - sdfSizes[i].xy * 0.5;
+    return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0);
+  } else if (sdfTypes[i] == 2) {
+    vec2 d = abs(coordUV - sdfCenters[i]) - sdfSizes[i].xy * 0.5;
+    return abs(length(max(d, 0.0)) + min(max(d.x, d.y), 0.0));
+  } else {
+    return length(coordUV - sdfCenters[i]) - sdfSizes[i].z;
+  }
+}
+
+vec2 sdfGradientAspect(vec2 coordUV, int i, float aspect) {
+  float e = 0.002;
+  float dx = evalSdfValue(coordUV + vec2(e, 0.0), i) - evalSdfValue(coordUV - vec2(e, 0.0), i);
+  float dy = evalSdfValue(coordUV + vec2(0.0, e), i) - evalSdfValue(coordUV - vec2(0.0, e), i);
+  float len = length(vec2(dx, dy));
+  if (len < 0.0001) return vec2(0.0);
+  vec2 gradDomUV = vec2(dx, dy) / len;
+  return normalize(vec2(gradDomUV.x * aspect, -gradDomUV.y));
+}
+
+// SDF displacement computed directly from current SDF geometry — no FBO
+// accumulation, so the effect is always in sync with element positions even
+// when the page is scrolled or elements move.
+vec2 applySdfDisplacement(vec2 uv, vec2 coordUV, float aspect) {
+  for (int i = 0; i < MAX_SDFS; i++) {
+    if (i >= sdfCount) break;
+    float sdfVal  = max(evalSdfValue(coordUV, i), 0.0);
+    float falloff = max(sdfFalloffs[i], 0.0001);
+    float w       = (1.0 - smoothstep(0.0, falloff, sdfVal)) * sdfIntensities[i];
+    if (w < 0.001) continue;
+    uv -= sdfGradientAspect(coordUV, i, aspect) * w * pushStrength;
+  }
+  return uv;
+}
+
+// Reads scalar mouse pressure from vel.b (maximum at cursor centre) and
+// reconstructs the outward displacement direction from the current mouse position.
+// This avoids the direction singularity at centre that caused a bright hole.
 vec2 applyVelocityField(vec2 uv, out float pressureMag) {
   pressureMag = 0.0;
   if (enableVelocityMap == 1) {
     vec2 screenUV = gl_FragCoord.xy / resolution.xy;
     vec4 vel = texture2D(velocityMap, screenUV);
     uv -= vel.rg;  // swirl: trails left by cursor movement
-    uv -= vel.ba;  // pressure: smoke parted outward from cursor position
-    pressureMag = length(vel.ba);
+    pressureMag = vel.b;  // mouse pressure scalar — peaks at cursor centre
+    if (enableMouseInteraction == 1 && pressureMag > 0.0001) {
+      float aspect  = resolution.x / resolution.y;
+      vec2 uvAspect = (screenUV - 0.5) * vec2(aspect, 1.0);
+      vec2 mouseUV  = vec2(mousePos.x / resolution.x, 1.0 - mousePos.y / resolution.y);
+      vec2 mAspect  = (mouseUV - 0.5) * vec2(aspect, 1.0);
+      float dist    = length(uvAspect - mAspect);
+      vec2 pushDir  = dist > 0.0001 ? normalize(uvAspect - mAspect) : vec2(0.0);
+      uv -= pushDir * pressureMag;
+    }
   }
   return uv;
 }
@@ -137,21 +186,21 @@ float applySdfs(float f, vec2 coordUV) {
 // Darken proportionally to pressure. Stored pressure is clamped to [0, 0.5]
 // in the velocity shader, so *2 maps the full range to a [0, 1] darkness factor.
 float applyPressureDarkening(float f, float pressureMag) {
-  return f / (1.0 - clamp(pressureMag * 2.0, 0.0, 1.0));
+  return f / max((1.0 - clamp(pressureMag * 2.0, 0.0, 1.0)), 0.0001);
 }
 
 void main() {
   float pressureMag;
   vec2 uv = applyVelocityField(setupUV(), pressureMag);
 
-  float f = clamp(pattern(uv), 0.0, 1.0);
-
   vec2 coordUV = gl_FragCoord.xy / resolution.xy;
   coordUV.y = 1.0 - coordUV.y;
+  float aspect = resolution.x / resolution.y;
+  uv = applySdfDisplacement(uv, coordUV, aspect);
+
+  float f = clamp(pattern(uv), 0.0, 1.0);
   f = applySdfs(f, coordUV);
-
   f = applyPressureDarkening(f, pressureMag);
-
   gl_FragColor = vec4(vec3(f), 1.0);
 }
 `
@@ -186,7 +235,21 @@ uniform vec2 sdfCenters[MAX_SDFS];
 uniform vec3 sdfSizes[MAX_SDFS];
 uniform float sdfFalloffs[MAX_SDFS];
 uniform float sdfIntensities[MAX_SDFS];
+uniform vec2 sdfDeltas[MAX_SDFS];
 varying vec2 vUv;
+
+// Evaluate SDF value in DOM UV space (Y=0 at top, matching sdfCenters convention).
+float evalSdfValue(vec2 coordUV, int i) {
+  if (sdfTypes[i] == 0) {
+    vec2 d = abs(coordUV - sdfCenters[i]) - sdfSizes[i].xy * 0.5;
+    return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0);
+  } else if (sdfTypes[i] == 2) {
+    vec2 d = abs(coordUV - sdfCenters[i]) - sdfSizes[i].xy * 0.5;
+    return abs(length(max(d, 0.0)) + min(max(d.x, d.y), 0.0));
+  } else {
+    return length(coordUV - sdfCenters[i]) - sdfSizes[i].z;
+  }
+}
 
 // 3×3 Gaussian blur of the velocity field centred on src.
 vec2 blurVelocity(vec2 src, vec2 texel) {
@@ -222,69 +285,44 @@ vec2 mouseSwirlContribution(vec2 uvAspect, vec2 mouseAspect) {
   return delta * falloff * 2.0;
 }
 
-// Update the pressure/parting field (BA channels).
-// Outward push: invDist falloff (smooth-clamped so no singularity at cursor).
-// mouseRadius^2 / (dist^2 + eps^2) gives ~1 at dist=mouseRadius, rises to a
-// cap of 5 at the centre, then tapers to zero beyond 2.5×mouseRadius.
-// Normalise gain so that steady-state displacement at rim equals pushStrength
-// regardless of pressureDecay. (geometric-series limit: gain / (1-decay) = strength)
-vec2 updatePressure(vec2 src, vec2 uvAspect, vec2 mouseAspect) {
-  // Read the previous pressure, advected with the wave pattern (same src as blur)
-  vec2 p = texture2D(prevVelocity, src).ba;
-  // Decay — this is the "refill speed": closer to 1 = slower refill
-  p *= pressureDecay;
+// Gaussian-falloff swirl added to v by an SDF's movement delta this frame.
+// sdfCenters are in DOM UV space; delta is in DOM UV units — converted to the
+// same noise-space units as mouse swirl: x scaled by aspect, y flipped.
+vec2 sdfSwirlContribution(vec2 uvAspect, int i, float aspect) {
+  vec2 sdfWebGL  = vec2(sdfCenters[i].x, 1.0 - sdfCenters[i].y);
+  vec2 sdfAspect = (sdfWebGL - 0.5) * vec2(aspect, 1.0);
+  float dist    = length(uvAspect - sdfAspect);
+  float sigma   = mouseRadius * 0.4;
+  float falloff = exp(-dist * dist / (2.0 * sigma * sigma));
+  vec2 delta    = vec2(sdfDeltas[i].x * aspect, -sdfDeltas[i].y);
+  return delta * falloff * 2.0;
+}
 
+// Accumulates combined mouse + SDF pressure in the B channel.
+// Mouse: inverse-distance peak at cursor, tapered beyond mouseRadius.
+// SDF:   falloff-based contribution at SDF edges, always in sync with geometry.
+// Storing scalars (not 2D vectors) keeps the cursor/SDF centres at maximum
+// value while outward directions are reconstructed live in the wave shader.
+float updatePressure(vec2 src, vec2 uvAspect, vec2 mouseAspect, vec2 coordUV) {
+  float p   = texture2D(prevVelocity, src).b;
+  p        *= pressureDecay;
+
+  // Mouse contribution
   float distP   = length(uvAspect - mouseAspect);
-  float eps     = mouseRadius * 0.1;
-  float invDist = min((mouseRadius * mouseRadius) / (distP * distP + eps * eps), 5.0);
+  float invDist = min((mouseRadius * mouseRadius) / (distP * distP), 5.0);
   float taper   = 1.0 - smoothstep(mouseRadius * 1.5, mouseRadius * 2.5, distP);
-  vec2 pushDir  = distP < eps ? vec2(0.0) : normalize(uvAspect - mouseAspect);
+  p += invDist * taper * pushStrength * (1.0 - pressureDecay);
 
-  p += pushDir * invDist * taper * pushStrength * (1.0 - pressureDecay);
-  return p;  // caller clamps after adding SDF pressure
-}
-
-// Evaluate SDF value in DOM UV space (Y=0 at top, matching sdfCenters convention).
-float evalSdfValue(vec2 coordUV, int i) {
-  if (sdfTypes[i] == 0) {
-    vec2 d = abs(coordUV - sdfCenters[i]) - sdfSizes[i].xy * 0.5;
-    return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0);
-  } else if (sdfTypes[i] == 2) {
-    vec2 d = abs(coordUV - sdfCenters[i]) - sdfSizes[i].xy * 0.5;
-    return abs(length(max(d, 0.0)) + min(max(d.x, d.y), 0.0));
-  } else {
-    return length(coordUV - sdfCenters[i]) - sdfSizes[i].z;
-  }
-}
-
-// Central-difference gradient in DOM UV space, transformed to uvAspect space.
-// DOM UV has Y pointing down; uvAspect has Y pointing up and x scaled by aspect.
-// Direction transform: (dx, dy_dom) -> normalize(dx * aspect, -dy_dom).
-vec2 sdfGradientAspect(vec2 coordUV, int i, float aspect) {
-  float e = 0.002;
-  float dx = evalSdfValue(coordUV + vec2(e, 0.0), i) - evalSdfValue(coordUV - vec2(e, 0.0), i);
-  float dy = evalSdfValue(coordUV + vec2(0.0, e), i) - evalSdfValue(coordUV - vec2(0.0, e), i);
-  float len = length(vec2(dx, dy));
-  if (len < 0.0001) return vec2(0.0);
-  vec2 gradDomUV = vec2(dx, dy) / len;
-  return normalize(vec2(gradDomUV.x * aspect, -gradDomUV.y));
-}
-
-// Steady-state outward pressure contributed by all active SDFs.
-// Uses the same pushStrength and pressureDecay as the mouse pressure so that
-// steady-state amplitude (gain / (1 - decay)) scales with sdfIntensities.
-vec2 sdfPressureContribution(vec2 coordUV, float aspect) {
-  vec2 pressure = vec2(0.0);
+  // SDF contribution — same channel, same decay
   for (int i = 0; i < MAX_SDFS; i++) {
     if (i >= sdfCount) break;
-    float sdfVal = max(evalSdfValue(coordUV, i), 0.0);
+    float sdfVal  = max(evalSdfValue(coordUV, i), 0.0);
     float falloff = max(sdfFalloffs[i], 0.0001);
-    float magnitude = (1.0 - smoothstep(0.0, falloff, sdfVal)) * sdfIntensities[i];
-    if (magnitude < 0.001) continue;
-    vec2 pushDir = sdfGradientAspect(coordUV, i, aspect);
-    pressure += pushDir * magnitude * pushStrength * (1.0 - pressureDecay);
+    float mag     = (1.0 - smoothstep(0.0, falloff, sdfVal)) * sdfIntensities[i];
+    p += mag * pushStrength * (1.0 - pressureDecay);
   }
-  return pressure;
+
+  return p;
 }
 
 void main() {
@@ -302,16 +340,22 @@ void main() {
   // Aspect-corrected positions used by both swirl and pressure helpers
   vec2 uvAspect    = (vUv     - 0.5) * vec2(aspect, 1.0);
   vec2 mouseAspect = (mouseUV - 0.5) * vec2(aspect, 1.0);
+  vec2 coordUV     = vec2(vUv.x, 1.0 - vUv.y);  // DOM UV (Y=0 at top, matches sdfCenters)
 
-  vec2 v = blurVelocity(src, texel) * 0.995;  // decay so swirls dissipate over time
-  v = clampMag(v + mouseSwirlContribution(uvAspect, mouseAspect), 0.3);
+  // Swirl: mouse + all moving SDFs, clamped to prevent runaway
+  vec2 v = blurVelocity(src, texel) * 0.995;
+  v += mouseSwirlContribution(uvAspect, mouseAspect);
+  for (int i = 0; i < MAX_SDFS; i++) {
+    if (i >= sdfCount) break;
+    v += sdfSwirlContribution(uvAspect, i, aspect);
+  }
+  v = clampMag(v, 0.3);
 
-  vec2 coordUV = vec2(vUv.x, 1.0 - vUv.y);  // DOM UV (Y=0 at top, matches sdfCenters)
-  vec2 p = updatePressure(src, uvAspect, mouseAspect);
-  p += sdfPressureContribution(coordUV, aspect);
-  p = clampMag(p, 0.5);
+  // Pressure: mouse + SDF merged into the B channel
+  float p = updatePressure(src, uvAspect, mouseAspect, coordUV);
+  p = clamp(p, 0.0, 0.5);
 
-  gl_FragColor = vec4(v, p);
+  gl_FragColor = vec4(v, p, 0.0);
 }
 `
 
@@ -333,6 +377,8 @@ export default function DitheredWaves({
   const bgColorObj = useRef(new THREE.Color(...ditherStateRef.current.backgroundColor).convertSRGBToLinear())
   const mouseRef = useRef(new THREE.Vector2())
   const mouseDeltaRef = useRef(new THREE.Vector2())
+  const prevSdfCentersRef = useRef(Array.from({ length: 8 }, () => new THREE.Vector2()))
+  const prevSdfCountRef = useRef(0)
   const { viewport, size, gl } = useThree()
 
   // --- Velocity FBO ping-pong ---
@@ -357,6 +403,7 @@ export default function DitheredWaves({
     sdfSizes: new THREE.Uniform(Array.from({ length: MAX_SDFS }, () => new THREE.Vector3())),
     sdfFalloffs: new THREE.Uniform(new Array(MAX_SDFS).fill(0)),
     sdfIntensities: new THREE.Uniform(new Array(MAX_SDFS).fill(0)),
+    sdfDeltas: new THREE.Uniform(Array.from({ length: MAX_SDFS }, () => new THREE.Vector2())),
   })
   const waveUniformsRef = useRef({
     time: new THREE.Uniform(0),
@@ -369,6 +416,7 @@ export default function DitheredWaves({
     mouseRadius: new THREE.Uniform(mouseRadius),
     velocityMap: new THREE.Uniform(null),
     enableVelocityMap: new THREE.Uniform(0),
+    pushStrength: new THREE.Uniform(mousePushStrength),
     sdfCount: new THREE.Uniform(0),
     sdfTypes: new THREE.Uniform(new Array(MAX_SDFS).fill(0)),
     sdfCenters: new THREE.Uniform(Array.from({ length: MAX_SDFS }, () => new THREE.Vector2())),
@@ -472,25 +520,37 @@ export default function DitheredWaves({
     waveColorObj.current.setRGB(wr, wg, wb).convertSRGBToLinear()
     bgColorObj.current.setRGB(br, bg, bb).convertSRGBToLinear()
 
+    u.pushStrength.value = mousePushStrength
+
     const activeSdfs = Object.values(ditherStateRef.current.sdfs)
     const sdfCount = Math.min(activeSdfs.length, MAX_SDFS)
+    const prevCount = prevSdfCountRef.current
     u.sdfCount.value  = sdfCount
     vu.sdfCount.value = sdfCount
     activeSdfs.slice(0, MAX_SDFS).forEach((sdf, i) => {
       const type      = sdf.type === 'circle' ? 1 : sdf.type === 'box_outline' ? 2 : 0
       const falloff   = sdf.falloff   ?? 0.1
       const intensity = sdf.intensity ?? 0.75
-      u.sdfTypes.value[i]      = type
+      u.sdfTypes.value[i]       = type
       u.sdfCenters.value[i].set(sdf.x, sdf.y)
       u.sdfSizes.value[i].set(sdf.width ?? 0, sdf.height ?? 0, sdf.radius ?? 0)
-      u.sdfFalloffs.value[i]   = falloff
+      u.sdfFalloffs.value[i]    = falloff
       u.sdfIntensities.value[i] = intensity
       vu.sdfTypes.value[i]      = type
       vu.sdfCenters.value[i].copy(u.sdfCenters.value[i])
       vu.sdfSizes.value[i].copy(u.sdfSizes.value[i])
       vu.sdfFalloffs.value[i]   = falloff
       vu.sdfIntensities.value[i] = intensity
+      // Compute per-SDF delta for swirl; zero out on first frame a new SDF appears
+      const prev = prevSdfCentersRef.current[i]
+      if (i < prevCount) {
+        vu.sdfDeltas.value[i].set(sdf.x - prev.x, sdf.y - prev.y)
+      } else {
+        vu.sdfDeltas.value[i].set(0, 0)
+      }
+      prev.set(sdf.x, sdf.y)
     })
+    prevSdfCountRef.current = sdfCount
   })
 
   useEffect(() => {
