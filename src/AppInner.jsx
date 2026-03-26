@@ -7,7 +7,7 @@ import SkillsSection from './components/SkillsSection/SkillsSection'
 import WorkExperienceSection from './components/WorkExperienceSection/WorkExperienceSection'
 
 export default function AppInner() {
-  const { config } = useDitherContext()
+  const { ditherStateRef } = useDitherContext()
 
   // React and R3F call performance.measure() on every frame in development builds.
   // The browser never frees these automatically, causing ~12 MB/minute of accumulation
@@ -25,9 +25,7 @@ export default function AppInner() {
     <main>
       <div style={{ position: 'fixed', inset: 0, zIndex: 0 }}>
         <Dither
-          waveColor={config.waveColor}
-          backgroundColor={config.backgroundColor}
-          sdfs={config.sdfs}
+          ditherStateRef={ditherStateRef}
           disableAnimation={false}
           enableMouseInteraction={true}
           mouseRadius={0.1}

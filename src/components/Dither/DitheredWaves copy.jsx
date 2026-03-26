@@ -1,5 +1,5 @@
 /* eslint-disable react/no-unknown-property */
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useMemo } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { EffectComposer } from '@react-three/postprocessing'
 import * as THREE from 'three'
@@ -129,7 +129,7 @@ float applySdfs(float f, vec2 coordUV) {
     }
     float sdfVal = 1.0 - smoothstep(0.0, max(sdfFalloffs[i], 0.0001), max(sdf, 0.0));
     sdfVal *= sdfIntensities[i];
-    f = clamp(f + sdfVal * 0.85, 0.0, 1.0);
+    f = clamp(f + sdfVal, 0.0, 1.0);
   }
   return f;
 }
@@ -179,13 +179,6 @@ uniform float waveSpeed;     // matches the wave shader's waveSpeed
 uniform float deltaTime;     // seconds since last frame
 uniform float pushStrength;  // steady-state noise-space displacement at rim
 uniform float pressureDecay; // per-frame pressure retention (higher = slower refill)
-#define MAX_SDFS 8
-uniform int sdfCount;
-uniform int sdfTypes[MAX_SDFS];
-uniform vec2 sdfCenters[MAX_SDFS];
-uniform vec3 sdfSizes[MAX_SDFS];
-uniform float sdfFalloffs[MAX_SDFS];
-uniform float sdfIntensities[MAX_SDFS];
 varying vec2 vUv;
 
 // 3×3 Gaussian blur of the velocity field centred on src.
@@ -241,50 +234,7 @@ vec2 updatePressure(vec2 src, vec2 uvAspect, vec2 mouseAspect) {
   vec2 pushDir  = distP < eps ? vec2(0.0) : normalize(uvAspect - mouseAspect);
 
   p += pushDir * invDist * taper * pushStrength * (1.0 - pressureDecay);
-  return p;  // caller clamps after adding SDF pressure
-}
-
-// Evaluate SDF value in DOM UV space (Y=0 at top, matching sdfCenters convention).
-float evalSdfValue(vec2 coordUV, int i) {
-  if (sdfTypes[i] == 0) {
-    vec2 d = abs(coordUV - sdfCenters[i]) - sdfSizes[i].xy * 0.5;
-    return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0);
-  } else if (sdfTypes[i] == 2) {
-    vec2 d = abs(coordUV - sdfCenters[i]) - sdfSizes[i].xy * 0.5;
-    return abs(length(max(d, 0.0)) + min(max(d.x, d.y), 0.0));
-  } else {
-    return length(coordUV - sdfCenters[i]) - sdfSizes[i].z;
-  }
-}
-
-// Central-difference gradient in DOM UV space, transformed to uvAspect space.
-// DOM UV has Y pointing down; uvAspect has Y pointing up and x scaled by aspect.
-// Direction transform: (dx, dy_dom) -> normalize(dx * aspect, -dy_dom).
-vec2 sdfGradientAspect(vec2 coordUV, int i, float aspect) {
-  float e = 0.002;
-  float dx = evalSdfValue(coordUV + vec2(e, 0.0), i) - evalSdfValue(coordUV - vec2(e, 0.0), i);
-  float dy = evalSdfValue(coordUV + vec2(0.0, e), i) - evalSdfValue(coordUV - vec2(0.0, e), i);
-  float len = length(vec2(dx, dy));
-  if (len < 0.0001) return vec2(0.0);
-  vec2 gradDomUV = vec2(dx, dy) / len;
-  return normalize(vec2(gradDomUV.x * aspect, -gradDomUV.y));
-}
-
-// Steady-state outward pressure contributed by all active SDFs.
-// Uses the same pushStrength and pressureDecay as the mouse pressure so that
-// steady-state amplitude (gain / (1 - decay)) scales with sdfIntensities.
-vec2 sdfPressureContribution(vec2 coordUV, float aspect) {
-  vec2 pressure = vec2(0.0);
-  for (int i = 0; i < MAX_SDFS; i++) {
-    if (i >= sdfCount) break;
-    float sdfVal = max(evalSdfValue(coordUV, i), 0.0);
-    float falloff = max(sdfFalloffs[i], 0.0001);
-    float magnitude = (1.0 - smoothstep(0.0, falloff, sdfVal)) * sdfIntensities[i];
-    if (magnitude < 0.001) continue;
-    vec2 pushDir = sdfGradientAspect(coordUV, i, aspect);
-    pressure += pushDir * magnitude * pushStrength * (1.0 - pressureDecay);
-  }
-  return pressure;
+  return clampMag(p, 0.5);
 }
 
 void main() {
@@ -306,20 +256,18 @@ void main() {
   vec2 v = blurVelocity(src, texel) * 0.995;  // decay so swirls dissipate over time
   v = clampMag(v + mouseSwirlContribution(uvAspect, mouseAspect), 0.3);
 
-  vec2 coordUV = vec2(vUv.x, 1.0 - vUv.y);  // DOM UV (Y=0 at top, matches sdfCenters)
   vec2 p = updatePressure(src, uvAspect, mouseAspect);
-  p += sdfPressureContribution(coordUV, aspect);
-  p = clampMag(p, 0.5);
 
   gl_FragColor = vec4(v, p);
 }
 `
 
 export default function DitheredWaves({
-  ditherStateRef,
   waveSpeed,
   waveFrequency,
   waveAmplitude,
+  waveColor,
+  backgroundColor,
   colorNum,
   pixelSize,
   disableAnimation,
@@ -327,16 +275,14 @@ export default function DitheredWaves({
   mouseRadius,
   mousePushStrength = 0.15,
   pressureDecay = 0.92,
+  sdfs = [],
 }) {
   const mesh = useRef(null)
-  const waveColorObj = useRef(new THREE.Color(...ditherStateRef.current.waveColor).convertSRGBToLinear())
-  const bgColorObj = useRef(new THREE.Color(...ditherStateRef.current.backgroundColor).convertSRGBToLinear())
   const mouseRef = useRef(new THREE.Vector2())
   const mouseDeltaRef = useRef(new THREE.Vector2())
   const { viewport, size, gl } = useThree()
 
   // --- Velocity FBO ping-pong ---
-  const MAX_SDFS = 8
   const fboRef = useRef({ read: null, write: null })
   const velSceneRef = useRef(new THREE.Scene())
   const velCameraRef = useRef(new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1))
@@ -351,13 +297,9 @@ export default function DitheredWaves({
     deltaTime: new THREE.Uniform(0),
     pushStrength: new THREE.Uniform(0.15),
     pressureDecay: new THREE.Uniform(0.92),
-    sdfCount: new THREE.Uniform(0),
-    sdfTypes: new THREE.Uniform(new Array(MAX_SDFS).fill(0)),
-    sdfCenters: new THREE.Uniform(Array.from({ length: MAX_SDFS }, () => new THREE.Vector2())),
-    sdfSizes: new THREE.Uniform(Array.from({ length: MAX_SDFS }, () => new THREE.Vector3())),
-    sdfFalloffs: new THREE.Uniform(new Array(MAX_SDFS).fill(0)),
-    sdfIntensities: new THREE.Uniform(new Array(MAX_SDFS).fill(0)),
   })
+
+  const MAX_SDFS = 8
   const waveUniformsRef = useRef({
     time: new THREE.Uniform(0),
     resolution: new THREE.Uniform(new THREE.Vector2(0, 0)),
@@ -422,6 +364,11 @@ export default function DitheredWaves({
     if (res.x !== w || res.y !== h) res.set(w, h)
   }, [size, gl])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const waveColorObj = useMemo(() => new THREE.Color(...waveColor).convertSRGBToLinear(), [waveColor[0], waveColor[1], waveColor[2]])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const bgColorObj = useMemo(() => new THREE.Color(...backgroundColor).convertSRGBToLinear(), [backgroundColor[0], backgroundColor[1], backgroundColor[2]])
+
   useFrame(({ clock, gl: renderer }, delta) => {
     const u  = waveUniformsRef.current
     const vu = velUniformsRef.current
@@ -466,30 +413,14 @@ export default function DitheredWaves({
     // Consume delta — reset so it doesn't repeat on the next frame
     mouseDeltaRef.current.set(0, 0)
 
-    // Mutate the stable Color objects in-place — no React re-render needed
-    const [wr, wg, wb] = ditherStateRef.current.waveColor
-    const [br, bg, bb] = ditherStateRef.current.backgroundColor
-    waveColorObj.current.setRGB(wr, wg, wb).convertSRGBToLinear()
-    bgColorObj.current.setRGB(br, bg, bb).convertSRGBToLinear()
-
-    const activeSdfs = Object.values(ditherStateRef.current.sdfs)
-    const sdfCount = Math.min(activeSdfs.length, MAX_SDFS)
-    u.sdfCount.value  = sdfCount
-    vu.sdfCount.value = sdfCount
+    const activeSdfs = sdfs ?? []
+    u.sdfCount.value = Math.min(activeSdfs.length, MAX_SDFS)
     activeSdfs.slice(0, MAX_SDFS).forEach((sdf, i) => {
-      const type      = sdf.type === 'circle' ? 1 : sdf.type === 'box_outline' ? 2 : 0
-      const falloff   = sdf.falloff   ?? 0.1
-      const intensity = sdf.intensity ?? 0.75
-      u.sdfTypes.value[i]      = type
+      u.sdfTypes.value[i] = sdf.type === 'circle' ? 1 : sdf.type === 'box_outline' ? 2 : 0
       u.sdfCenters.value[i].set(sdf.x, sdf.y)
       u.sdfSizes.value[i].set(sdf.width ?? 0, sdf.height ?? 0, sdf.radius ?? 0)
-      u.sdfFalloffs.value[i]   = falloff
-      u.sdfIntensities.value[i] = intensity
-      vu.sdfTypes.value[i]      = type
-      vu.sdfCenters.value[i].copy(u.sdfCenters.value[i])
-      vu.sdfSizes.value[i].copy(u.sdfSizes.value[i])
-      vu.sdfFalloffs.value[i]   = falloff
-      vu.sdfIntensities.value[i] = intensity
+      u.sdfFalloffs.value[i]   = sdf.falloff    ?? 0.1
+      u.sdfIntensities.value[i] = sdf.intensity  ?? 0.75
     })
   })
 
@@ -534,8 +465,8 @@ export default function DitheredWaves({
         <RetroEffect
           colorNum={colorNum}
           pixelSize={pixelSize}
-          waveColor={waveColorObj.current}
-          backgroundColor={bgColorObj.current}
+          waveColor={waveColorObj}
+          backgroundColor={bgColorObj}
         />
       </EffectComposer>
     </>

@@ -1,7 +1,7 @@
 import { useRef, useEffect, useId } from 'react'
 import { useDitherContext } from '../DitherContext'
 
-export default function BoxSdfFrame({ children, falloff = 0.2, intensity = 0.9 }) {
+export default function BoxSdfFrame({ children, falloff = 0.2, intensity = 0.1 }) {
   const frameRef = useRef(null)
   const { registerSdf, unregisterSdf } = useDitherContext()
   const id = useId()
