@@ -26,6 +26,8 @@ uniform float waveAmplitude;
 uniform vec2 mousePos;
 uniform int enableMouseInteraction;
 uniform float mouseRadius;
+uniform sampler2D velocityMap;
+uniform int enableVelocityMap;
 #define MAX_SDFS 8
 uniform int sdfCount;
 uniform int sdfTypes[MAX_SDFS];
@@ -89,30 +91,28 @@ void main() {
   vec2 uv = gl_FragCoord.xy / resolution.xy;
   uv -= 0.5;
   uv.x *= resolution.x / resolution.y;
+
+  // Displace noise lookup by the persistent velocity field
+  if (enableVelocityMap == 1) {
+    vec2 screenUV = gl_FragCoord.xy / resolution.xy;
+    uv -= texture2D(velocityMap, screenUV).rg;
+  }
+
   float f = pattern(uv);
   f = clamp(f, 0.0, 1.0);
-  if (enableMouseInteraction == 1) {
-    vec2 mouseNDC = (mousePos / resolution - 0.5) * vec2(1.0, -1.0);
-    mouseNDC.x *= resolution.x / resolution.y;
-    float dist = length(uv - mouseNDC);
-    float effect = 1.0 - smoothstep(0.0, mouseRadius, dist);
-    f -= 0.5 * effect;
-  }
+
   vec2 coordUV = gl_FragCoord.xy / resolution.xy;
   coordUV.y = 1.0 - coordUV.y;
   for (int i = 0; i < MAX_SDFS; i++) {
     if (i >= sdfCount) break;
     float sdf;
     if (sdfTypes[i] == 0) {
-      // Filled box: negative inside, positive outside; max() clips interior to give full fill
       vec2 d = abs(coordUV - sdfCenters[i]) - sdfSizes[i].xy * 0.5;
       sdf = length(max(d, 0.0)) + min(max(d.x, d.y), 0.0);
     } else if (sdfTypes[i] == 2) {
-      // Empty box outline: abs(box SDF) is 0 at the edge, positive on both sides
       vec2 d = abs(coordUV - sdfCenters[i]) - sdfSizes[i].xy * 0.5;
       sdf = abs(length(max(d, 0.0)) + min(max(d.x, d.y), 0.0));
     } else {
-      // Circle
       sdf = length(coordUV - sdfCenters[i]) - sdfSizes[i].z;
     }
     float sdfVal = 1.0 - smoothstep(0.0, max(sdfFalloffs[i], 0.0001), max(sdf, 0.0));
@@ -120,6 +120,82 @@ void main() {
     f = clamp(f + sdfVal, 0.0, 1.0);
   }
   gl_FragColor = vec4(vec3(f), 1.0);
+}
+`
+
+// Renders one step of the velocity field:
+//   - 3×3 Gaussian blur of the previous frame's velocity (spreads/swirls)
+//   - Decay multiplier (velocity dissipates over time)
+//   - Gaussian "paint" of the current mouse delta at the cursor position
+const velocityVertexShader = `
+varying vec2 vUv;
+void main() {
+  vUv = uv;
+  gl_Position = vec4(position, 1.0);
+}
+`
+
+const velocityFragmentShader = `
+precision highp float;
+uniform sampler2D prevVelocity;
+uniform vec2 mousePos;     // pixel coords (top-left origin)
+uniform vec2 mouseDelta;   // accumulated pixel delta this frame
+uniform float mouseRadius; // noise-space radius (matches wave shader)
+uniform vec2 resolution;
+uniform float waveSpeed;   // matches the wave shader's waveSpeed
+uniform float deltaTime;   // seconds since last frame
+varying vec2 vUv;
+
+void main() {
+  vec2 texel = 1.0 / resolution;
+  float aspect = resolution.x / resolution.y;
+
+  // Advect the sample origin so stored velocity drifts with the wave pattern.
+  // The noise pattern moves by (deltaTime * waveSpeed) in both noise-x and noise-y
+  // each frame. Converting to FBO UV space: divide x by aspect, y stays as-is.
+  vec2 waveAdvect = vec2(deltaTime * waveSpeed / aspect, deltaTime * waveSpeed);
+  vec2 src = vUv - waveAdvect;
+
+  // 3×3 Gaussian blur centred on the advected position
+  vec2 v = vec2(0.0);
+  v += texture2D(prevVelocity, src + vec2(-1.0,-1.0)*texel).rg * 0.0625;
+  v += texture2D(prevVelocity, src + vec2( 0.0,-1.0)*texel).rg * 0.125;
+  v += texture2D(prevVelocity, src + vec2( 1.0,-1.0)*texel).rg * 0.0625;
+  v += texture2D(prevVelocity, src + vec2(-1.0, 0.0)*texel).rg * 0.125;
+  v += texture2D(prevVelocity, src               ).rg * 0.25;
+  v += texture2D(prevVelocity, src + vec2( 1.0, 0.0)*texel).rg * 0.125;
+  v += texture2D(prevVelocity, src + vec2(-1.0, 1.0)*texel).rg * 0.0625;
+  v += texture2D(prevVelocity, src + vec2( 0.0, 1.0)*texel).rg * 0.125;
+  v += texture2D(prevVelocity, src + vec2( 1.0, 1.0)*texel).rg * 0.0625;
+
+  // Decay so swirls dissipate over time
+  v *= 0.995;
+
+  // --- Mouse contribution ---
+  // Convert mouse pixel position to screen UV (y flipped: WebGL bottom-left, DOM top-left)
+  vec2 mouseUV = vec2(mousePos.x / resolution.x, 1.0 - mousePos.y / resolution.y);
+
+  // Compute distance in the same aspect-corrected space used by the noise UV
+  vec2 uvAspect    = (vUv     - 0.5) * vec2(aspect, 1.0);
+  vec2 mouseAspect = (mouseUV - 0.5) * vec2(aspect, 1.0);
+  float dist = length(uvAspect - mouseAspect);
+
+  // Gaussian falloff — sigma scaled to mouseRadius so the push area matches the clear area
+  float sigma   = mouseRadius * 0.4;
+  float falloff = exp(-dist * dist / (2.0 * sigma * sigma));
+
+  // Convert pixel delta to noise-space units.
+  // Both axes divide by resolution.y: y-span covers resolution.y pixels, and after
+  // aspect-correction x-span does too. Flip Y: pixel-Y increases downward, noise-Y upward.
+  vec2 delta = vec2(mouseDelta.x, -mouseDelta.y) / resolution.y;
+
+  v += delta * falloff * 2.0;
+
+  // Clamp magnitude to prevent runaway displacement
+  float mag = length(v);
+  if (mag > 0.3) v = v / mag * 0.3;
+
+  gl_FragColor = vec4(v, 0.0, 1.0);
 }
 `
 
@@ -138,7 +214,23 @@ export default function DitheredWaves({
 }) {
   const mesh = useRef(null)
   const mouseRef = useRef(new THREE.Vector2())
+  const mouseDeltaRef = useRef(new THREE.Vector2())
   const { viewport, size, gl } = useThree()
+
+  // --- Velocity FBO ping-pong ---
+  const fboRef = useRef({ read: null, write: null })
+  const velSceneRef = useRef(new THREE.Scene())
+  const velCameraRef = useRef(new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1))
+  const velMeshRef = useRef(null)
+  const velUniformsRef = useRef({
+    prevVelocity: new THREE.Uniform(null),
+    mousePos: new THREE.Uniform(new THREE.Vector2()),
+    mouseDelta: new THREE.Uniform(new THREE.Vector2()),
+    mouseRadius: new THREE.Uniform(mouseRadius),
+    resolution: new THREE.Uniform(new THREE.Vector2()),
+    waveSpeed: new THREE.Uniform(waveSpeed),
+    deltaTime: new THREE.Uniform(0),
+  })
 
   const MAX_SDFS = 8
   const waveUniformsRef = useRef({
@@ -150,6 +242,8 @@ export default function DitheredWaves({
     mousePos: new THREE.Uniform(new THREE.Vector2(0, 0)),
     enableMouseInteraction: new THREE.Uniform(enableMouseInteraction ? 1 : 0),
     mouseRadius: new THREE.Uniform(mouseRadius),
+    velocityMap: new THREE.Uniform(null),
+    enableVelocityMap: new THREE.Uniform(0),
     sdfCount: new THREE.Uniform(0),
     sdfTypes: new THREE.Uniform(new Array(MAX_SDFS).fill(0)),
     sdfCenters: new THREE.Uniform(Array.from({ length: MAX_SDFS }, () => new THREE.Vector2())),
@@ -158,31 +252,63 @@ export default function DitheredWaves({
     sdfIntensities: new THREE.Uniform(new Array(MAX_SDFS).fill(0)),
   })
 
+  // Create / resize velocity FBOs and velocity-update mesh
   useEffect(() => {
     const dpr = gl.getPixelRatio()
-    const w = Math.floor(size.width * dpr),
-      h = Math.floor(size.height * dpr)
-    const res = waveUniformsRef.current.resolution.value
-    if (res.x !== w || res.y !== h) {
-      res.set(w, h)
+    const w = Math.floor(size.width * dpr)
+    const h = Math.floor(size.height * dpr)
+
+    fboRef.current.read?.dispose()
+    fboRef.current.write?.dispose()
+
+    const opts = {
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
+      format: THREE.RGBAFormat,
+      type: THREE.HalfFloatType,
+      depthBuffer: false,
     }
+    fboRef.current.read  = new THREE.WebGLRenderTarget(w, h, opts)
+    fboRef.current.write = new THREE.WebGLRenderTarget(w, h, opts)
+
+    velUniformsRef.current.resolution.value.set(w, h)
+
+    // Build the full-screen quad for velocity updates (only once)
+    if (!velMeshRef.current) {
+      const mat = new THREE.ShaderMaterial({
+        vertexShader: velocityVertexShader,
+        fragmentShader: velocityFragmentShader,
+        uniforms: velUniformsRef.current,
+      })
+      const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat)
+      velSceneRef.current.add(quad)
+      velMeshRef.current = quad
+    }
+
+    waveUniformsRef.current.enableVelocityMap.value = 1
   }, [size, gl])
 
-  // Only reallocate THREE.Color when the actual RGB values change, not on every render.
-  // Without this, a new Color is created on every scroll event (context re-render).
+  // Sync wave-shader resolution
+  useEffect(() => {
+    const dpr = gl.getPixelRatio()
+    const w = Math.floor(size.width * dpr)
+    const h = Math.floor(size.height * dpr)
+    const res = waveUniformsRef.current.resolution.value
+    if (res.x !== w || res.y !== h) res.set(w, h)
+  }, [size, gl])
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const waveColorObj = useMemo(() => new THREE.Color(...waveColor).convertSRGBToLinear(), [waveColor[0], waveColor[1], waveColor[2]])
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const bgColorObj = useMemo(() => new THREE.Color(...backgroundColor).convertSRGBToLinear(), [backgroundColor[0], backgroundColor[1], backgroundColor[2]])
 
-  useFrame(({ clock }) => {
-    const u = waveUniformsRef.current
+  useFrame(({ clock, gl: renderer }, delta) => {
+    const u  = waveUniformsRef.current
+    const vu = velUniformsRef.current
 
-    if (!disableAnimation) {
-      u.time.value = clock.getElapsedTime()
-    }
+    if (!disableAnimation) u.time.value = clock.getElapsedTime()
 
-    if (u.waveSpeed.value !== waveSpeed) u.waveSpeed.value = waveSpeed
+    if (u.waveSpeed.value    !== waveSpeed)    u.waveSpeed.value    = waveSpeed
     if (u.waveFrequency.value !== waveFrequency) u.waveFrequency.value = waveFrequency
     if (u.waveAmplitude.value !== waveAmplitude) u.waveAmplitude.value = waveAmplitude
 
@@ -193,24 +319,67 @@ export default function DitheredWaves({
       u.mousePos.value.copy(mouseRef.current)
     }
 
+    // --- Velocity FBO update ---
+    const { read, write } = fboRef.current
+    if (enableMouseInteraction && read && write) {
+      vu.prevVelocity.value = read.texture
+      vu.mousePos.value.copy(mouseRef.current)
+      vu.mouseDelta.value.copy(mouseDeltaRef.current)
+      vu.mouseRadius.value = mouseRadius
+      vu.waveSpeed.value = waveSpeed
+      vu.deltaTime.value = disableAnimation ? 0 : delta
+
+      renderer.setRenderTarget(write)
+      renderer.render(velSceneRef.current, velCameraRef.current)
+      renderer.setRenderTarget(null)
+
+      // Ping-pong swap
+      const tmp = fboRef.current.read
+      fboRef.current.read  = fboRef.current.write
+      fboRef.current.write = tmp
+
+      u.velocityMap.value = fboRef.current.read.texture
+    }
+
+    // Consume delta — reset so it doesn't repeat on the next frame
+    mouseDeltaRef.current.set(0, 0)
+
     const activeSdfs = sdfs ?? []
     u.sdfCount.value = Math.min(activeSdfs.length, MAX_SDFS)
     activeSdfs.slice(0, MAX_SDFS).forEach((sdf, i) => {
       u.sdfTypes.value[i] = sdf.type === 'circle' ? 1 : sdf.type === 'box_outline' ? 2 : 0
       u.sdfCenters.value[i].set(sdf.x, sdf.y)
       u.sdfSizes.value[i].set(sdf.width ?? 0, sdf.height ?? 0, sdf.radius ?? 0)
-      u.sdfFalloffs.value[i] = sdf.falloff ?? 0.1
-      u.sdfIntensities.value[i] = sdf.intensity ?? 0.75
+      u.sdfFalloffs.value[i]   = sdf.falloff    ?? 0.1
+      u.sdfIntensities.value[i] = sdf.intensity  ?? 0.75
     })
-
   })
 
-  const handlePointerMove = e => {
+  useEffect(() => {
     if (!enableMouseInteraction) return
-    const rect = gl.domElement.getBoundingClientRect()
-    const dpr = gl.getPixelRatio()
-    mouseRef.current.set((e.clientX - rect.left) * dpr, (e.clientY - rect.top) * dpr)
-  }
+    const handleMouseMove = e => {
+      const rect = gl.domElement.getBoundingClientRect()
+      const dpr  = gl.getPixelRatio()
+      const newX = (e.clientX - rect.left) * dpr
+      const newY = (e.clientY - rect.top)  * dpr
+      // Accumulate delta between frames
+      mouseDeltaRef.current.x += newX - mouseRef.current.x
+      mouseDeltaRef.current.y += newY - mouseRef.current.y
+      mouseRef.current.set(newX, newY)
+    }
+    window.addEventListener('mousemove', handleMouseMove)
+    return () => window.removeEventListener('mousemove', handleMouseMove)
+  }, [enableMouseInteraction, gl])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      fboRef.current.read?.dispose()
+      fboRef.current.write?.dispose()
+      velMeshRef.current?.geometry.dispose()
+      velMeshRef.current?.material.dispose()
+    }
+  }, [])
 
   return (
     <>
@@ -231,16 +400,6 @@ export default function DitheredWaves({
           backgroundColor={bgColorObj}
         />
       </EffectComposer>
-
-      <mesh
-        onPointerMove={handlePointerMove}
-        position={[0, 0, 0.01]}
-        scale={[viewport.width, viewport.height, 1]}
-        visible={false}
-      >
-        <planeGeometry args={[1, 1]} />
-        <meshBasicMaterial transparent opacity={0} />
-      </mesh>
     </>
   )
 }

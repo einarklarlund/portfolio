@@ -29,7 +29,8 @@ export default function AppInner() {
           backgroundColor={config.backgroundColor}
           sdfs={config.sdfs}
           disableAnimation={false}
-          enableMouseInteraction={false}
+          enableMouseInteraction={true}
+          mouseRadius={0.1}
           colorNum={4}
           waveAmplitude={0.5}
           waveFrequency={2}
