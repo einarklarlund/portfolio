@@ -16,7 +16,7 @@ export default function Dither({
   mouseRadius = 1,
   // Steady-state noise-space displacement at mouseRadius distance from cursor.
   // Higher values = more aggressive parting.
-  mousePushStrength = 0.15,
+  mousePushStrength = 0.125,
   // Per-frame pressure retention (0–1). Higher = slower refill after cursor passes.
   // Typical range: 0.85 (fast) – 0.98 (slow).
   pressureDecay = 0.92,

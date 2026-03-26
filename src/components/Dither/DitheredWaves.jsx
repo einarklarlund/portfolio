@@ -92,12 +92,15 @@ void main() {
   uv -= 0.5;
   uv.x *= resolution.x / resolution.y;
 
-  // Displace noise lookup by the persistent velocity/pressure field
+  // Displace noise lookup by the persistent velocity/pressure field.
+  // pressureMag is kept in scope so it can darken the output below.
+  float pressureMag = 0.0;
   if (enableVelocityMap == 1) {
     vec2 screenUV = gl_FragCoord.xy / resolution.xy;
     vec4 vel = texture2D(velocityMap, screenUV);
     uv -= vel.rg;  // swirl: trails left by cursor movement
     uv -= vel.ba;  // pressure: smoke parted outward from cursor position
+    pressureMag = length(vel.ba);
   }
 
   float f = pattern(uv);
@@ -121,6 +124,11 @@ void main() {
     sdfVal *= sdfIntensities[i];
     f = clamp(f + sdfVal, 0.0, 1.0);
   }
+
+  // Darken proportionally to pressure. Stored pressure is clamped to [0, 0.5]
+  // in the velocity shader, so *2 maps the full range to a [0, 1] darkness factor.
+  f /= 1.0 - clamp(pressureMag * 2.0, 0.0, 1.0);
+
   gl_FragColor = vec4(vec3(f), 1.0);
 }
 `
