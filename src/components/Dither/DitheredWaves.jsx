@@ -177,7 +177,6 @@ float applySdfs(float f, vec2 coordUV) {
       sdf = sdfCircle(coordUV, i);
     }
     float sdfVal = 1.0 - smoothstep(0.0, max(sdfFalloffs[i], 0.0001), max(sdf, 0.0));
-    sdfVal *= sdfIntensities[i];
     f = clamp(f + sdfVal * 0.85, 0.0, 1.0);
   }
   return f;
@@ -285,17 +284,18 @@ vec2 mouseSwirlContribution(vec2 uvAspect, vec2 mouseAspect) {
   return delta * falloff * 2.0;
 }
 
-// Gaussian-falloff swirl added to v by an SDF's movement delta this frame.
-// sdfCenters are in DOM UV space; delta is in DOM UV units — converted to the
-// same noise-space units as mouse swirl: x scaled by aspect, y flipped.
-vec2 sdfSwirlContribution(vec2 uvAspect, int i, float aspect) {
-  vec2 sdfWebGL  = vec2(sdfCenters[i].x, 1.0 - sdfCenters[i].y);
-  vec2 sdfAspect = (sdfWebGL - 0.5) * vec2(aspect, 1.0);
-  float dist    = length(uvAspect - sdfAspect);
-  float sigma   = mouseRadius * 0.4;
-  float falloff = exp(-dist * dist / (2.0 * sigma * sigma));
+// SDF-surface-falloff swirl added to v by an SDF's movement delta this frame.
+// Intensity follows the same smoothstep profile as pressure — peaks at the
+// SDF surface (sdfVal=0) and falls to zero over sdfFalloffs[i].
+// Delta is in DOM UV units — converted to noise-space: x scaled by aspect, y flipped.
+vec2 sdfSwirlContribution(vec2 coordUV, int i, float aspect) {
+  float sdfVal  = max(evalSdfValue(coordUV, i), 0.0);
+  float falloff = max(sdfFalloffs[i], 0.0001);
+  float mag     = (1.0 - smoothstep(0.0, falloff, sdfVal)) * sdfIntensities[i];
   vec2 delta    = vec2(sdfDeltas[i].x * aspect, -sdfDeltas[i].y);
-  return delta * falloff * 2.0;
+  return delta * mag * 2.0;
+  // float sdfSwirlMax = 0.1;
+  // return clampMag(delta * mag * 0.125, sdfSwirlMax);
 }
 
 // Accumulates combined mouse + SDF pressure in the B channel.
@@ -347,7 +347,7 @@ void main() {
   v += mouseSwirlContribution(uvAspect, mouseAspect);
   for (int i = 0; i < MAX_SDFS; i++) {
     if (i >= sdfCount) break;
-    v += sdfSwirlContribution(uvAspect, i, aspect);
+    v += sdfSwirlContribution(coordUV, i, aspect);
   }
   v = clampMag(v, 0.3);
 
