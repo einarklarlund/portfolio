@@ -373,8 +373,6 @@ export default function DitheredWaves({
   pressureDecay = 0.92,
 }) {
   const mesh = useRef(null)
-  const waveColorObj = useRef(new THREE.Color(...ditherStateRef.current.waveColor).convertSRGBToLinear())
-  const bgColorObj = useRef(new THREE.Color(...ditherStateRef.current.backgroundColor).convertSRGBToLinear())
   const mouseRef = useRef(new THREE.Vector2())
   const mouseDeltaRef = useRef(new THREE.Vector2())
   const prevSdfCentersRef = useRef(Array.from({ length: 8 }, () => new THREE.Vector2()))
@@ -514,12 +512,6 @@ export default function DitheredWaves({
     // Consume delta — reset so it doesn't repeat on the next frame
     mouseDeltaRef.current.set(0, 0)
 
-    // Mutate the stable Color objects in-place — no React re-render needed
-    const [wr, wg, wb] = ditherStateRef.current.waveColor
-    const [br, bg, bb] = ditherStateRef.current.backgroundColor
-    waveColorObj.current.setRGB(wr, wg, wb).convertSRGBToLinear()
-    bgColorObj.current.setRGB(br, bg, bb).convertSRGBToLinear()
-
     u.pushStrength.value = mousePushStrength
 
     const activeSdfs = Object.values(ditherStateRef.current.sdfs)
@@ -527,7 +519,8 @@ export default function DitheredWaves({
     const prevCount = prevSdfCountRef.current
     u.sdfCount.value  = sdfCount
     vu.sdfCount.value = sdfCount
-    activeSdfs.slice(0, MAX_SDFS).forEach((sdf, i) => {
+    for (let i = 0; i < sdfCount; i++) {
+      const sdf       = activeSdfs[i]
       const type      = sdf.type === 'circle' ? 1 : sdf.type === 'box_outline' ? 2 : 0
       const falloff   = sdf.falloff   ?? 0.1
       const intensity = sdf.intensity ?? 0.75
@@ -549,7 +542,7 @@ export default function DitheredWaves({
         vu.sdfDeltas.value[i].set(0, 0)
       }
       prev.set(sdf.x, sdf.y)
-    })
+    }
     prevSdfCountRef.current = sdfCount
   })
 
@@ -594,8 +587,7 @@ export default function DitheredWaves({
         <RetroEffect
           colorNum={colorNum}
           pixelSize={pixelSize}
-          waveColor={waveColorObj.current}
-          backgroundColor={bgColorObj.current}
+          ditherStateRef={ditherStateRef}
         />
       </EffectComposer>
     </>

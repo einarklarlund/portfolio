@@ -1,5 +1,6 @@
 /* eslint-disable react/no-unknown-property */
-import { forwardRef } from 'react'
+import { forwardRef, useRef } from 'react'
+import { useFrame } from '@react-three/fiber'
 import { wrapEffect } from '@react-three/postprocessing'
 import { Effect } from 'postprocessing'
 import * as THREE from 'three'
@@ -56,17 +57,35 @@ class RetroEffectImpl extends Effect {
   get colorNum() { return this.uniforms.get('colorNum').value }
   set pixelSize(v) { this.uniforms.get('pixelSize').value = v }
   get pixelSize() { return this.uniforms.get('pixelSize').value }
-  set waveColor(v) { this.uniforms.get('waveColor').value = v }
+  set waveColor(v) { this.uniforms.get('waveColor').value.copy(v) }
   get waveColor() { return this.uniforms.get('waveColor').value }
-  set backgroundColor(v) { this.uniforms.get('backgroundColor').value = v }
+  set backgroundColor(v) { this.uniforms.get('backgroundColor').value.copy(v) }
   get backgroundColor() { return this.uniforms.get('backgroundColor').value }
 }
 
 const WrappedRetro = wrapEffect(RetroEffectImpl)
 
-const RetroEffect = forwardRef((props, ref) => {
-  const { colorNum, pixelSize, waveColor, backgroundColor } = props
-  return <WrappedRetro ref={ref} colorNum={colorNum} pixelSize={pixelSize} waveColor={waveColor} backgroundColor={backgroundColor} />
+const RetroEffect = forwardRef(({ colorNum, pixelSize, ditherStateRef }, outerRef) => {
+  const effectRef = useRef()
+
+  useFrame(() => {
+    if (!effectRef.current) return
+    const [wr, wg, wb] = ditherStateRef.current.waveColor
+    const [br, bg, bb] = ditherStateRef.current.backgroundColor
+    effectRef.current.uniforms.get('waveColor').value.setRGB(wr, wg, wb).convertSRGBToLinear()
+    effectRef.current.uniforms.get('backgroundColor').value.setRGB(br, bg, bb).convertSRGBToLinear()
+  })
+
+  return (
+    <WrappedRetro
+      ref={node => {
+        effectRef.current = node
+        if (outerRef) typeof outerRef === 'function' ? outerRef(node) : (outerRef.current = node)
+      }}
+      colorNum={colorNum}
+      pixelSize={pixelSize}
+    />
+  )
 })
 RetroEffect.displayName = 'RetroEffect'
 
