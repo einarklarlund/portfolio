@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import Dither from './components/Dither/Dither'
+import DitheredWaves from './components/Dither/DitheredWaves'
 import { useDitherContext } from './components/DitherContext'
 import IntroSection from './components/IntroSection/IntroSection'
 import ProjectsSection from './components/ProjectsSection/ProjectsSection'
@@ -24,7 +24,7 @@ export default function AppInner() {
   return (
     <main>
       <div style={{ position: 'fixed', inset: 0, zIndex: 0 }}>
-        <Dither
+        <DitheredWaves
           ditherStateRef={ditherStateRef}
           disableAnimation={false}
           enableMouseInteraction={true}
