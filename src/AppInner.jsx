@@ -28,10 +28,10 @@ export default function AppInner() {
           ditherStateRef={ditherStateRef}
           disableAnimation={false}
           enableMouseInteraction={true}
-          mouseRadius={0.1}
+          mouseRadius={0.05}
           colorNum={4}
-          waveAmplitude={0.5}
-          waveFrequency={2}
+          waveAmplitude={0.25}
+          waveFrequency={4}
           waveSpeed={0.025}
         />
       </div>
