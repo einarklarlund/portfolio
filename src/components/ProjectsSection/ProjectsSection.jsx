@@ -81,20 +81,7 @@ const PROJECTS = [
       `${BASE}einus-arena-2-gameplay-1.mp4`,
       `${BASE}einus-arena-2-gameplay-2.mp4`,
     ],
-  },
-  {
-    id: 5,
-    title: 'Game Editor for Learning',
-    description: (
-      <>A platformer made with a level editor, made in QML. Was used for a{' '}
-        <a href="https://www.sciencedirect.com/science/article/pii/S1749772822000124#sec0065" target="_blank" rel="noopener noreferrer" style={{ color: '#D3DAD9', textDecoration: 'underline' }}>research paper</a>{' '}
-        about how game-jams can be used as educational tools.
-      </>
-    ),
-    tech: ['QML/Felgo', 'Persistent saving'],
-    color: '#D3DAD9',
-    videos: [],
-  },
+  }
 ]
 
 export default function ProjectsSection() {
