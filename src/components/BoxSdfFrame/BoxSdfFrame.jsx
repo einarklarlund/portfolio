@@ -1,43 +1,94 @@
-import { useRef, useEffect, useId } from 'react'
+import { useRef, useEffect, useId, useCallback } from 'react'
 import { useDitherContext } from '../DitherContext'
 
-export default function BoxSdfFrame({ children, falloff = 0.2, intensity = 0.3 }) {
+export default function BoxSdfFrame({ children, falloff = 0.2, intensity = 0.3, layoutKey }) {
   const frameRef = useRef(null)
   const { registerSdf, unregisterSdf } = useDitherContext()
   const id = useId()
-  const prevRef = useRef(null)
+
+  const currentRef = useRef({ intensity: 0, falloff: 0 })
+  const targetRef = useRef({ intensity, falloff })
+  const posRef = useRef(null)
+  const rafRef = useRef(null)
+
+  // Keep target ref in sync with props without triggering effects
+  targetRef.current = { intensity, falloff }
+
+  const startAnimation = useCallback(() => {
+    if (rafRef.current) return
+
+    function tick() {
+      // Remeasure every frame so the SDF tracks framer-motion layout animations
+      const el = frameRef.current
+      let posChanged = false
+      if (el) {
+        const rect = el.getBoundingClientRect()
+        const vw = window.innerWidth
+        const vh = window.innerHeight
+        const newPos = {
+          cx: (rect.left + rect.width / 2) / vw,
+          cy: (rect.top + rect.height / 2) / vh,
+          w: rect.width / vw,
+          h: rect.height / vh,
+        }
+        const prev = posRef.current
+        if (!prev || prev.cx !== newPos.cx || prev.cy !== newPos.cy ||
+            prev.w !== newPos.w || prev.h !== newPos.h) {
+          posChanged = true
+        }
+        posRef.current = newPos
+      }
+
+      const LERP = 0.12
+      const THRESHOLD = 0.00001
+      const curr = currentRef.current
+      const tgt = targetRef.current
+
+      curr.intensity += (tgt.intensity - curr.intensity) * LERP
+      curr.falloff += (tgt.falloff - curr.falloff) * LERP
+
+      const doneIntensity = Math.abs(tgt.intensity - curr.intensity) < THRESHOLD
+      const doneFalloff = Math.abs(tgt.falloff - curr.falloff) < THRESHOLD
+      if (doneIntensity) curr.intensity = tgt.intensity
+      if (doneFalloff) curr.falloff = tgt.falloff
+
+      const pos = posRef.current
+      if (pos) {
+        registerSdf(id, {
+          type: 'box_outline',
+          x: pos.cx, y: pos.cy, width: pos.w, height: pos.h,
+          falloff: curr.falloff, intensity: curr.intensity,
+        })
+      }
+
+      if (doneIntensity && doneFalloff && !posChanged) {
+        rafRef.current = null
+      } else {
+        rafRef.current = requestAnimationFrame(tick)
+      }
+    }
+
+    rafRef.current = requestAnimationFrame(tick)
+  }, [id, registerSdf])
+
+  // Restart the loop when props or external layout signals change
+  useEffect(() => {
+    startAnimation()
+  }, [intensity, falloff, layoutKey, startAnimation])
 
   useEffect(() => {
-    function updateSdf() {
-      const el = frameRef.current
-      if (!el) return
-
-      const rect = el.getBoundingClientRect()
-      const vw = window.innerWidth
-      const vh = window.innerHeight
-
-      const cx = (rect.left + rect.width / 2) / vw
-      const cy = (rect.top + rect.height / 2) / vh
-      const w = rect.width / vw
-      const h = rect.height / vh
-
-      const prev = prevRef.current
-      if (prev && prev.cx === cx && prev.cy === cy && prev.w === w && prev.h === h) return
-
-      prevRef.current = { cx, cy, w, h }
-      registerSdf(id, { type: 'box_outline', x: cx, y: cy, width: w, height: h, falloff, intensity })
-    }
-
-    updateSdf()
-    window.addEventListener('scroll', updateSdf, { passive: true })
-    window.addEventListener('resize', updateSdf)
+    startAnimation()
+    window.addEventListener('scroll', startAnimation, { passive: true })
+    window.addEventListener('resize', startAnimation)
     return () => {
-      prevRef.current = null
-      window.removeEventListener('scroll', updateSdf)
-      window.removeEventListener('resize', updateSdf)
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
+      posRef.current = null
+      window.removeEventListener('scroll', startAnimation)
+      window.removeEventListener('resize', startAnimation)
       unregisterSdf(id)
     }
-  }, [id, registerSdf, unregisterSdf, falloff, intensity])
+  }, [id, unregisterSdf, startAnimation])
 
   return (
     <div ref={frameRef} style={{ position: 'relative', width: '100%' }}>

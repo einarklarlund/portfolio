@@ -7,12 +7,8 @@ import { useDitherContext } from '../DitherContext'
 export default function IntroSection() {
   const sectionRef = useRef(null)
   const crtRef = useRef(null)
-  const { ditherStateRef, registerSdf, unregisterSdf } = useDitherContext()
+  const { registerSdf, unregisterSdf } = useDitherContext()
   const sdfId = useId()
-
-  useEffect(() => {
-    ditherStateRef.current.backgroundColor = [0.827, 0.855, 0.851]
-  }, [ditherStateRef])
 
   useEffect(() => {
     const measure = () => {

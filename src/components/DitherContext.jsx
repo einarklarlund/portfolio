@@ -5,7 +5,7 @@ const DitherContext = createContext()
 export function DitherProvider({ children }) {
   const ditherStateRef = useRef({
     waveColor: [0.216, 0.208, 0.243],
-    backgroundColor: [0, 0, 0],
+    backgroundColor: [0.827, 0.855, 0.851],
     sdfs: {},
   })
 

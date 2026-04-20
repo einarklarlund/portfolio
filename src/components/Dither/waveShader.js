@@ -22,7 +22,7 @@ uniform float mouseRadius;
 uniform sampler2D velocityMap;
 uniform int enableVelocityMap;
 uniform float pushStrength;
-#define MAX_SDFS 8
+#define MAX_SDFS 12
 uniform int sdfCount;
 uniform int sdfTypes[MAX_SDFS];
 uniform vec2 sdfCenters[MAX_SDFS];

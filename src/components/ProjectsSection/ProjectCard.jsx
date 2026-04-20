@@ -1,16 +1,29 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import ProjectThumbnail from './ProjectThumbnail'
+import BoxSdfFrame from '../BoxSdfFrame/BoxSdfFrame'
 
 export default function ProjectCard({ project, isSelected, onSelect, selectedId }) {
   const [hovered, setHovered] = useState(false)
+  const [clickPulse, setClickPulse] = useState(false)
+  const pulseTimeoutRef = useRef(null)
   const isOther = selectedId !== null && !isSelected
   const active = hovered || isSelected
+
+  function handleClick() {
+    if (pulseTimeoutRef.current) clearTimeout(pulseTimeoutRef.current)
+    setClickPulse(true)
+    pulseTimeoutRef.current = setTimeout(() => setClickPulse(false), 450)
+    onSelect(isSelected ? null : project.id)
+  }
+
+  const targetIntensity = clickPulse ? 0.3 : hovered ? 0.15 : 0
+  const targetFalloff   = clickPulse ? 0.15 : hovered ? 0.075 : 0
 
   return (
     <motion.div
       layout
-      onClick={() => onSelect(isSelected ? null : project.id)}
+      onClick={handleClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -21,7 +34,9 @@ export default function ProjectCard({ project, isSelected, onSelect, selectedId 
       animate={{ opacity: isOther ? 0.3 : 1, scale: isOther ? 0.9 : 1, filter: isOther ? 'blur(2px)' : 'blur(0px)' }}
       transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
     >
-      <ProjectThumbnail color={project.color} videos={project.videos} active={active} />
+      <BoxSdfFrame intensity={targetIntensity} falloff={targetFalloff} layoutKey={selectedId}>
+        <ProjectThumbnail color={project.color} videos={project.videos} active={active} />
+      </BoxSdfFrame>
       <motion.p style={{ marginTop: '0.75rem', fontSize: '0.95rem', fontWeight: 600, color: '#37353E' }}>
         {project.title}
       </motion.p>
