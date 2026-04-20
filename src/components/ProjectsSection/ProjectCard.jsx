@@ -13,12 +13,12 @@ export default function ProjectCard({ project, isSelected, onSelect, selectedId 
   function handleClick() {
     if (pulseTimeoutRef.current) clearTimeout(pulseTimeoutRef.current)
     setClickPulse(true)
-    pulseTimeoutRef.current = setTimeout(() => setClickPulse(false), 450)
+    pulseTimeoutRef.current = setTimeout(() => setClickPulse(false), 150)
     onSelect(isSelected ? null : project.id)
   }
 
-  const targetIntensity = clickPulse ? 0.3 : hovered ? 0.15 : 0
-  const targetFalloff   = clickPulse ? 0.15 : hovered ? 0.075 : 0
+  const targetIntensity = clickPulse ? 0.3 : hovered ? 0.0375 : 0
+  const targetFalloff   = clickPulse ? 0.15 : hovered ? 0.02 : 0
 
   return (
     <motion.div
@@ -34,7 +34,7 @@ export default function ProjectCard({ project, isSelected, onSelect, selectedId 
       animate={{ opacity: isOther ? 0.3 : 1, scale: isOther ? 0.9 : 1, filter: isOther ? 'blur(2px)' : 'blur(0px)' }}
       transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
     >
-      <BoxSdfFrame intensity={targetIntensity} falloff={targetFalloff} layoutKey={selectedId}>
+      <BoxSdfFrame intensity={targetIntensity} falloff={targetFalloff}>
         <ProjectThumbnail color={project.color} videos={project.videos} active={active} />
       </BoxSdfFrame>
       <motion.p style={{ marginTop: '0.75rem', fontSize: '0.95rem', fontWeight: 600, color: '#37353E' }}>

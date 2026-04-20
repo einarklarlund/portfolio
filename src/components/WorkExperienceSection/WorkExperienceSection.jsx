@@ -2,7 +2,7 @@ import { motion, useInView } from 'framer-motion'
 import { useRef } from 'react'
 import TimelineEntry from './TimelineEntry'
 import BoxSdfFrame from '../BoxSdfFrame/BoxSdfFrame'
-import { useWaveColorTransition } from '../../hooks/useWaveColorTransition'
+import { useScrollColorTransition } from '../../bridge/useScrollColorTransition'
 
 const SECTION_COLOR = [0.827, 0.855, 0.851]
 const PREV_COLOR    = [0.267, 0.267, 0.306]
@@ -58,7 +58,7 @@ const containerVariants = {
 export default function WorkExperienceSection() {
   const sectionRef = useRef(null)
   const isInView = useInView(sectionRef, { amount: 0.1 })
-  useWaveColorTransition(sectionRef, SECTION_COLOR, PREV_COLOR)
+  useScrollColorTransition(sectionRef, SECTION_COLOR, PREV_COLOR)
 
   return (
     <BoxSdfFrame>

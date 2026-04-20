@@ -2,15 +2,6 @@
 //   - 3×3 Gaussian blur of the previous frame's velocity (spreads/swirls)
 //   - Decay multiplier (velocity dissipates over time)
 //   - Gaussian "paint" of the current mouse delta at the cursor position
-export const velocityVertexShader = `
-varying vec2 vUv;
-void main() {
-  vUv = uv;
-  gl_Position = vec4(position, 1.0);
-}
-`
-
-export const velocityFragmentShader = `
 precision highp float;
 uniform sampler2D prevVelocity;
 uniform vec2 mousePos;       // pixel coords (top-left origin)
@@ -83,13 +74,11 @@ vec2 mouseSwirlContribution(vec2 uvAspect, vec2 mouseAspect) {
 // SDF surface (sdfVal=0) and falls to zero over sdfFalloffs[i].
 // Delta is in DOM UV units — converted to noise-space: x scaled by aspect, y flipped.
 vec2 sdfSwirlContribution(vec2 coordUV, int i, float aspect) {
-  float sdfVal  = max(evalSdfValue(coordUV, i), 0.0);
+  float sdfVal  = max(evalSdfValue(coordUV, i), 0.0)  ;
   float falloff = max(sdfFalloffs[i], 0.0001);
   float mag     = (1.0 - smoothstep(0.0, falloff, sdfVal)) * sdfIntensities[i];
   vec2 delta    = vec2(sdfDeltas[i].x * aspect, -sdfDeltas[i].y);
   return delta * mag * 2.0;
-  // float sdfSwirlMax = 0.1;
-  // return clampMag(delta * mag * 0.125, sdfSwirlMax);
 }
 
 // Accumulates combined mouse + SDF pressure in the B channel.
@@ -151,4 +140,3 @@ void main() {
 
   gl_FragColor = vec4(v, p, 0.0);
 }
-`

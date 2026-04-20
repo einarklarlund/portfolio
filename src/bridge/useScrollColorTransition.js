@@ -1,13 +1,15 @@
 import { useEffect } from 'react'
-import { useDitherContext } from '../components/DitherContext'
+import { useDitherStore } from '../store/ditherStore'
 
 function lerp(a, b, t) {
   return a.map((v, i) => v + (b[i] - v) * t)
 }
 
-export function useWaveColorTransition(sectionRef, sectionColor, prevColor) {
-  const { ditherStateRef } = useDitherContext()
-
+// As the user scrolls into `sectionRef`, fade the store's waveColor from
+// `prevColor` → `sectionColor` over one viewport of scroll. Once past the
+// transition zone, locks to `sectionColor`. Written with mutation-in-place so
+// no React re-render happens per scroll event.
+export function useScrollColorTransition(sectionRef, sectionColor, prevColor) {
   useEffect(() => {
     function handleScroll() {
       const el = sectionRef.current
@@ -23,13 +25,19 @@ export function useWaveColorTransition(sectionRef, sectionColor, prevColor) {
 
       if (scrollY < rangeStart || scrollY > rangeEnd) return
 
-      ditherStateRef.current.waveColor = scrollY <= sectionTop
+      const next = scrollY <= sectionTop
         ? lerp(prevColor, sectionColor, (scrollY - rangeStart) / vh)
         : sectionColor
+
+      // Mutate in place — three.js reads .waveColor each frame regardless.
+      const state = useDitherStore.getState()
+      state.waveColor[0] = next[0]
+      state.waveColor[1] = next[1]
+      state.waveColor[2] = next[2]
     }
 
     window.addEventListener('scroll', handleScroll, { passive: true })
     handleScroll()
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [sectionRef, sectionColor, prevColor, ditherStateRef])
+  }, [sectionRef, sectionColor, prevColor])
 }

@@ -3,7 +3,7 @@ import { motion, useInView, LayoutGroup } from 'framer-motion'
 import ScrollArrow from '../ScrollArrow'
 import ProjectCard from './ProjectCard'
 import BoxSdfFrame from '../BoxSdfFrame/BoxSdfFrame'
-import { useWaveColorTransition } from '../../hooks/useWaveColorTransition'
+import { useScrollColorTransition } from '../../bridge/useScrollColorTransition'
 
 const BASE = import.meta.env.BASE_URL
 
@@ -102,7 +102,7 @@ export default function ProjectsSection() {
   const sectionRef = useRef(null)
   const headingRef = useRef(null)
   const isInView = useInView(sectionRef, { amount: 0.2 })
-  useWaveColorTransition(sectionRef, SECTION_COLOR, PREV_COLOR)
+  useScrollColorTransition(sectionRef, SECTION_COLOR, PREV_COLOR)
 
   function handleSelect(id) {
     if (id !== null && selectedId === null && headingRef.current) {

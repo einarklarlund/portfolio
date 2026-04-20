@@ -3,7 +3,7 @@ import { useRef } from 'react'
 import ScrollArrow from '../ScrollArrow'
 import SkillGroup from './SkillGroup'
 import BoxSdfFrame from '../BoxSdfFrame/BoxSdfFrame'
-import { useWaveColorTransition } from '../../hooks/useWaveColorTransition'
+import { useScrollColorTransition } from '../../bridge/useScrollColorTransition'
 
 const SECTION_COLOR = [0.267, 0.267, 0.306]
 const PREV_COLOR    = [0.443, 0.353, 0.353]
@@ -53,7 +53,7 @@ const GAME_DEVELOPMENT = {
 export default function SkillsSection() {
   const sectionRef = useRef(null)
   const isInView = useInView(sectionRef, { amount: 0.2 })
-  useWaveColorTransition(sectionRef, SECTION_COLOR, PREV_COLOR)
+  useScrollColorTransition(sectionRef, SECTION_COLOR, PREV_COLOR)
 
   return (
     <BoxSdfFrame>

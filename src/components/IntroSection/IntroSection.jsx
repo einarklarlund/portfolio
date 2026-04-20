@@ -1,41 +1,13 @@
 import { motion } from 'framer-motion'
-import { useRef, useEffect, useId } from 'react'
+import { useRef } from 'react'
 import CrtBackground from './CrtBackground'
 import ScrollArrow from '../ScrollArrow'
-import { useDitherContext } from '../DitherContext'
+import { useSdfFromRef } from '../../bridge/useSdfFromRef'
 
 export default function IntroSection() {
   const sectionRef = useRef(null)
   const crtRef = useRef(null)
-  const { registerSdf, unregisterSdf } = useDitherContext()
-  const sdfId = useId()
-
-  useEffect(() => {
-    const measure = () => {
-      const crtEl = crtRef.current
-      if (!crtEl) return
-      const crtRect = crtEl.getBoundingClientRect()
-      registerSdf(sdfId, {
-        type: 'box',
-        x: (crtRect.left + crtRect.width / 2) / window.innerWidth,
-        y: (crtRect.top + crtRect.height / 2) / window.innerHeight,
-        width: crtRect.width / window.innerWidth,
-        height: crtRect.height / window.innerHeight,
-        falloff: 0.03,
-        intensity: 0.8,
-      })
-    }
-    measure()
-    const ro = new ResizeObserver(measure)
-    if (crtRef.current) ro.observe(crtRef.current)
-    if (sectionRef.current) ro.observe(sectionRef.current)
-    window.addEventListener('scroll', measure)
-    return () => {
-      ro.disconnect()
-      window.removeEventListener('scroll', measure)
-      unregisterSdf(sdfId)
-    }
-  }, [sdfId, registerSdf, unregisterSdf])
+  useSdfFromRef(crtRef, { type: 'box', intensity: 0.8, falloff: 0.03 })
 
   return (
     <motion.section

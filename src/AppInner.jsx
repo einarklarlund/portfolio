@@ -1,14 +1,11 @@
 import { useEffect } from 'react'
-import DitheredWaves from './components/Dither/DitheredWaves'
-import { useDitherContext } from './components/DitherContext'
+import BackgroundCanvas from './three/BackgroundCanvas'
 import IntroSection from './components/IntroSection/IntroSection'
 import ProjectsSection from './components/ProjectsSection/ProjectsSection'
 import SkillsSection from './components/SkillsSection/SkillsSection'
 import WorkExperienceSection from './components/WorkExperienceSection/WorkExperienceSection'
 
 export default function AppInner() {
-  const { ditherStateRef } = useDitherContext()
-
   // React and R3F call performance.measure() on every frame in development builds.
   // The browser never frees these automatically, causing ~12 MB/minute of accumulation
   // in dev mode. Periodically clear them. This has no effect in production builds.
@@ -21,11 +18,11 @@ export default function AppInner() {
       return () => clearInterval(id)
     }
   }, [])
+
   return (
     <main>
       <div style={{ position: 'fixed', inset: 0, zIndex: 0 }}>
-        <DitheredWaves
-          ditherStateRef={ditherStateRef}
+        <BackgroundCanvas
           disableAnimation={false}
           enableMouseInteraction={true}
           mouseRadius={0.05}

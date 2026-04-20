@@ -1,15 +1,3 @@
-export const waveVertexShader = `
-precision highp float;
-varying vec2 vUv;
-void main() {
-  vUv = uv;
-  vec4 modelPosition = modelMatrix * vec4(position, 1.0);
-  vec4 viewPosition = viewMatrix * modelPosition;
-  gl_Position = projectionMatrix * viewPosition;
-}
-`
-
-export const waveFragmentShader = `
 precision highp float;
 uniform vec2 resolution;
 uniform float time;
@@ -195,4 +183,3 @@ void main() {
   f = applyPressureDarkening(f, pressureMag);
   gl_FragColor = vec4(vec3(f), 1.0);
 }
-`
