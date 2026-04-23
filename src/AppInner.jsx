@@ -1,12 +1,16 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import IntroSection from './components/IntroSection/IntroSection'
-import ProjectsSection from './components/ProjectsSection/ProjectsSection'
-import SkillsSection from './components/SkillsSection/SkillsSection'
-import WorkExperienceSection from './components/WorkExperienceSection/WorkExperienceSection'
 
 // Lazy so three.js, @react-three/fiber, and postprocessing land in a separate
 // chunk that isn't parsed during initial page load.
 const BackgroundCanvas = lazy(() => import('./three/BackgroundCanvas'))
+
+// Below-the-fold sections: split out so framer-motion's heavier APIs
+// (LayoutGroup, useInView, AnimatePresence) and the section code don't land
+// in the main chunk's parse path.
+const ProjectsSection = lazy(() => import('./components/ProjectsSection/ProjectsSection'))
+const SkillsSection = lazy(() => import('./components/SkillsSection/SkillsSection'))
+const WorkExperienceSection = lazy(() => import('./components/WorkExperienceSection/WorkExperienceSection'))
 
 export default function AppInner() {
   // React and R3F call performance.measure() on every frame in development builds.
@@ -53,9 +57,11 @@ export default function AppInner() {
         )}
       </div>
       <IntroSection />
-      <ProjectsSection />
-      <SkillsSection />
-      <WorkExperienceSection />
+      <Suspense fallback={null}>
+        <ProjectsSection />
+        <SkillsSection />
+        <WorkExperienceSection />
+      </Suspense>
     </main>
   )
 }
