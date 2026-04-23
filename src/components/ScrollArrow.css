@@ -1,0 +1,37 @@
+.scroll-arrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: inherit;
+  z-index: 10;
+  cursor: pointer;
+  opacity: 0;
+  animation: scroll-arrow-fade-in 0.8s linear 1.5s forwards;
+}
+
+.scroll-arrow__label {
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.scroll-arrow__icon {
+  animation: scroll-arrow-bounce 1.8s cubic-bezier(0.42, 0, 0.58, 1) infinite;
+}
+
+@keyframes scroll-arrow-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes scroll-arrow-bounce {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(6px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-arrow { opacity: 1; animation: none; }
+  .scroll-arrow__icon { animation: none; }
+}

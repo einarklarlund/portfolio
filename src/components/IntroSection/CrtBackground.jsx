@@ -1,13 +1,29 @@
-import { useEffect, useState } from 'react'
-import CrtScreen from './CrtScreen'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import SpeakerPanel from './CrtSpeakerPanel'
+
+// CrtScreen creates 19 <video> elements and runs a per-pixel rAF loop on
+// mount. Both its code (LUT, video URL list) and its effects would otherwise
+// execute during Lighthouse's TBT window. Deferring the import + mount until
+// the browser is idle keeps that work out of the critical path.
+const CrtScreen = lazy(() => import('./CrtScreen'))
 
 export default function CrtBackground({ ref }) {
   const [visible, setVisible] = useState(false)
+  const [screenReady, setScreenReady] = useState(false)
 
   useEffect(() => {
     const fadeTimer = setTimeout(() => setVisible(true), 1000)
     return () => clearTimeout(fadeTimer)
+  }, [])
+
+  useEffect(() => {
+    const mount = () => setScreenReady(true)
+    if ('requestIdleCallback' in window) {
+      const id = window.requestIdleCallback(mount, { timeout: 3000 })
+      return () => window.cancelIdleCallback(id)
+    }
+    const id = setTimeout(mount, 1500)
+    return () => clearTimeout(id)
   }, [])
 
   return (
@@ -40,7 +56,9 @@ export default function CrtBackground({ ref }) {
       {/* Middle row: left bezel + screen + right bezel */}
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         <SpeakerPanel side="left" />
-        <CrtScreen />
+        <Suspense fallback={<div style={{ flex: 1, background: '#37353E' }} />}>
+          {screenReady && <CrtScreen />}
+        </Suspense>
         <SpeakerPanel side="right" />
       </div>
       {/* Bottom panel — thicker, holds controls */}

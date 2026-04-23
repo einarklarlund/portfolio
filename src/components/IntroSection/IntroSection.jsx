@@ -1,8 +1,8 @@
-import { motion } from 'framer-motion'
 import { useRef } from 'react'
 import CrtBackground from './CrtBackground'
 import ScrollArrow from '../ScrollArrow'
 import { useSdfFromRef } from '../../bridge/useSdfFromRef'
+import './IntroSection.css'
 
 export default function IntroSection() {
   const sectionRef = useRef(null)
@@ -10,7 +10,7 @@ export default function IntroSection() {
   useSdfFromRef(crtRef, { type: 'box', intensity: 0.8, falloff: 0.03 })
 
   return (
-    <motion.section
+    <section
       ref={sectionRef}
       id="intro"
       style={{
@@ -27,10 +27,8 @@ export default function IntroSection() {
       <CrtBackground ref={crtRef} />
 
       {/* Header — centered on top screen edge */}
-      <motion.h1
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, ease: 'easeOut', delay: 0.3 }}
+      <h1
+        className="intro-heading"
         style={{
           position: 'absolute',
           top: '24px',
@@ -50,13 +48,11 @@ export default function IntroSection() {
         }}
       >
         Game Dev & Software
-      </motion.h1>
+      </h1>
 
       {/* Subtitle + arrow — centered on bottom screen edge */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, ease: 'easeOut', delay: 0.5 }}
+      <div
+        className="intro-subtitle"
         style={{
           position: 'absolute',
           bottom: '25px',
@@ -84,7 +80,7 @@ export default function IntroSection() {
           I'm Einar Klarlund, a gameplay and software engineer with full-stack and cloud service skills, and a love for retro games.
         </p>
         <ScrollArrow label="projects" targetId="projects" style={{ color: '#715A5A' }} />
-      </motion.div>
-    </motion.section>
+      </div>
+    </section>
   )
 }

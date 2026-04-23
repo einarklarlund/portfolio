@@ -1,0 +1,28 @@
+/* Slide-in animations only — no opacity fade. Starting at opacity 0 disqualifies
+ * the element as an LCP candidate in Chrome (first paint is invisible), which
+ * can result in Lighthouse's NO_LCP error since these are the largest visible
+ * elements in the above-the-fold viewport. */
+@keyframes intro-slide-in-down {
+  from { transform: translateY(calc(-50% + 20px)); }
+  to   { transform: translateY(-50%); }
+}
+
+@keyframes intro-slide-in-up {
+  from { transform: translateY(calc(50% - 20px)); }
+  to   { transform: translateY(50%); }
+}
+
+.intro-heading {
+  animation: intro-slide-in-down 0.8s cubic-bezier(0, 0, 0.58, 1) 0.3s both;
+}
+
+.intro-subtitle {
+  animation: intro-slide-in-up 0.8s cubic-bezier(0, 0, 0.58, 1) 0.5s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-heading,
+  .intro-subtitle {
+    animation: none;
+  }
+}
