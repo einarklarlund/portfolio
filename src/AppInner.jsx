@@ -1,9 +1,12 @@
-import { useEffect } from 'react'
-import BackgroundCanvas from './three/BackgroundCanvas'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import IntroSection from './components/IntroSection/IntroSection'
 import ProjectsSection from './components/ProjectsSection/ProjectsSection'
 import SkillsSection from './components/SkillsSection/SkillsSection'
 import WorkExperienceSection from './components/WorkExperienceSection/WorkExperienceSection'
+
+// Lazy so three.js, @react-three/fiber, and postprocessing land in a separate
+// chunk that isn't parsed during initial page load.
+const BackgroundCanvas = lazy(() => import('./three/BackgroundCanvas'))
 
 export default function AppInner() {
   // React and R3F call performance.measure() on every frame in development builds.
@@ -19,18 +22,35 @@ export default function AppInner() {
     }
   }, [])
 
+  // Delay mounting the canvas until the browser is idle so LCP/TBT windows
+  // close before three.js starts executing.
+  const [canvasReady, setCanvasReady] = useState(false)
+  useEffect(() => {
+    const mount = () => setCanvasReady(true)
+    if ('requestIdleCallback' in window) {
+      const id = window.requestIdleCallback(mount, { timeout: 1000 })
+      return () => window.cancelIdleCallback(id)
+    }
+    const id = setTimeout(mount, 0)
+    return () => clearTimeout(id)
+  }, [])
+
   return (
     <main>
       <div style={{ position: 'fixed', inset: 0, zIndex: 0 }}>
-        <BackgroundCanvas
-          disableAnimation={false}
-          enableMouseInteraction={true}
-          mouseRadius={0.05}
-          colorNum={4}
-          waveAmplitude={0.25}
-          waveFrequency={4}
-          waveSpeed={0.025}
-        />
+        {canvasReady && (
+          <Suspense fallback={null}>
+            <BackgroundCanvas
+              disableAnimation={false}
+              enableMouseInteraction={true}
+              mouseRadius={0.05}
+              colorNum={4}
+              waveAmplitude={0.25}
+              waveFrequency={4}
+              waveSpeed={0.025}
+            />
+          </Suspense>
+        )}
       </div>
       <IntroSection />
       <ProjectsSection />
