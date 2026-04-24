@@ -15,8 +15,18 @@ export function useWaveParamSync(
     mouseRadius,
     mousePushStrength,
     pressureDecay,
+    colorNum,
+    pixelSize,
   },
 ) {
+  useEffect(() => {
+    waveUniformsRef.current.colorNum.value = colorNum
+  }, [colorNum, waveUniformsRef])
+
+  useEffect(() => {
+    waveUniformsRef.current.pixelSize.value = pixelSize
+  }, [pixelSize, waveUniformsRef])
+
   useEffect(() => {
     waveUniformsRef.current.waveSpeed.value = waveSpeed
     velocityUniformsRef.current.waveSpeed.value = waveSpeed

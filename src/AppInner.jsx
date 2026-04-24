@@ -1,8 +1,8 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import IntroSection from './components/IntroSection/IntroSection'
 
-// Lazy so three.js, @react-three/fiber, and postprocessing land in a separate
-// chunk that isn't parsed during initial page load.
+// Lazy so three.js and @react-three/fiber land in a separate chunk that
+// isn't parsed during initial page load.
 const BackgroundCanvas = lazy(() => import('./three/BackgroundCanvas'))
 
 // Below-the-fold sections: split out so their code + CSS-reveal observers

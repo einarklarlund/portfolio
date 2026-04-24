@@ -12,6 +12,8 @@ export function createWaveUniforms({
   mouseRadius,
   mousePushStrength,
   enableMouseInteraction,
+  colorNum,
+  pixelSize,
 }) {
   return {
     time: new THREE.Uniform(0),
@@ -25,6 +27,11 @@ export function createWaveUniforms({
     velocityMap: new THREE.Uniform(null),
     enableVelocityMap: new THREE.Uniform(0),
     pushStrength: new THREE.Uniform(mousePushStrength),
+    colorNum: new THREE.Uniform(colorNum),
+    pixelSize: new THREE.Uniform(pixelSize),
+    // Mutated in place each frame by useColorUniforms from the zustand store.
+    waveColor: new THREE.Uniform(new THREE.Vector3(1, 1, 1)),
+    backgroundColor: new THREE.Uniform(new THREE.Vector3(0, 0, 0)),
     sdfCount: new THREE.Uniform(0),
     sdfTypes: new THREE.Uniform(new Array(MAX_SDFS).fill(0)),
     sdfCenters: new THREE.Uniform(Array.from({ length: MAX_SDFS }, () => new THREE.Vector2())),

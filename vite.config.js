@@ -28,8 +28,7 @@ export default defineConfig({
           if (/[\\/]node_modules[\\/]three[\\/]/.test(id)) return 'three'
           if (
             /[\\/]node_modules[\\/]@react-three[\\/]/.test(id) ||
-            /[\\/]node_modules[\\/]postprocessing[\\/]/.test(id) ||
-            /[\\/]node_modules[\\/](?:its-fine|suspend-react|react-use-measure|maath|n8ao)[\\/]/.test(id)
+            /[\\/]node_modules[\\/](?:its-fine|suspend-react|react-use-measure)[\\/]/.test(id)
           ) {
             return 'r3f'
           }

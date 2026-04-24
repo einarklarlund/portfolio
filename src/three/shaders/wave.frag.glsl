@@ -10,6 +10,10 @@ uniform float mouseRadius;
 uniform sampler2D velocityMap;
 uniform int enableVelocityMap;
 uniform float pushStrength;
+uniform float colorNum;
+uniform float pixelSize;
+uniform vec3 waveColor;
+uniform vec3 backgroundColor;
 #define MAX_SDFS 12
 uniform int sdfCount;
 uniform int sdfTypes[MAX_SDFS];
@@ -17,6 +21,17 @@ uniform vec2 sdfCenters[MAX_SDFS];
 uniform vec3 sdfSizes[MAX_SDFS];
 uniform float sdfFalloffs[MAX_SDFS];
 uniform float sdfIntensities[MAX_SDFS];
+
+const float bayerMatrix8x8[64] = float[64](
+  0.0/64.0, 48.0/64.0, 12.0/64.0, 60.0/64.0,  3.0/64.0, 51.0/64.0, 15.0/64.0, 63.0/64.0,
+  32.0/64.0,16.0/64.0, 44.0/64.0, 28.0/64.0, 35.0/64.0,19.0/64.0, 47.0/64.0, 31.0/64.0,
+  8.0/64.0, 56.0/64.0,  4.0/64.0, 52.0/64.0, 11.0/64.0,59.0/64.0,  7.0/64.0, 55.0/64.0,
+  40.0/64.0,24.0/64.0, 36.0/64.0, 20.0/64.0, 43.0/64.0,27.0/64.0, 39.0/64.0, 23.0/64.0,
+  2.0/64.0, 50.0/64.0, 14.0/64.0, 62.0/64.0,  1.0/64.0,49.0/64.0, 13.0/64.0, 61.0/64.0,
+  34.0/64.0,18.0/64.0, 46.0/64.0, 30.0/64.0, 33.0/64.0,17.0/64.0, 45.0/64.0, 29.0/64.0,
+  10.0/64.0,58.0/64.0,  6.0/64.0, 54.0/64.0,  9.0/64.0,57.0/64.0,  5.0/64.0, 53.0/64.0,
+  42.0/64.0,26.0/64.0, 38.0/64.0, 22.0/64.0, 41.0/64.0,25.0/64.0, 37.0/64.0, 21.0/64.0
+);
 
 vec4 mod289(vec4 x) { return x - floor(x * (1.0/289.0)) * 289.0; }
 vec4 permute(vec4 x) { return mod289(((x * 34.0) + 1.0) * x); }
@@ -69,13 +84,6 @@ float pattern(vec2 p) {
   return fbm(p + fbm(p2));
 }
 
-vec2 setupUV() {
-  vec2 uv = gl_FragCoord.xy / resolution.xy;
-  uv -= 0.5;
-  uv.x *= resolution.x / resolution.y;
-  return uv;
-}
-
 // SDF helpers (mirrored from the velocity shader, operating in DOM UV space).
 float evalSdfValue(vec2 coordUV, int i) {
   if (sdfTypes[i] == 0) {
@@ -117,10 +125,12 @@ vec2 applySdfDisplacement(vec2 uv, vec2 coordUV, float aspect) {
 // Reads scalar mouse pressure from vel.b (maximum at cursor centre) and
 // reconstructs the outward displacement direction from the current mouse position.
 // This avoids the direction singularity at centre that caused a bright hole.
-vec2 applyVelocityField(vec2 uv, out float pressureMag) {
+// Reads gl_FragCoord indirectly via `sampleCoord` so we can evaluate the wave
+// at cell-center coordinates when pixelating.
+vec2 applyVelocityField(vec2 uv, vec2 sampleCoord, out float pressureMag) {
   pressureMag = 0.0;
   if (enableVelocityMap == 1) {
-    vec2 screenUV = gl_FragCoord.xy / resolution.xy;
+    vec2 screenUV = sampleCoord / resolution.xy;
     vec4 vel = texture2D(velocityMap, screenUV);
     uv -= vel.rg;  // swirl: trails left by cursor movement
     pressureMag = vel.b;  // mouse pressure scalar — peaks at cursor centre
@@ -170,10 +180,21 @@ float applyPressureDarkening(float f, float pressureMag) {
 }
 
 void main() {
-  float pressureMag;
-  vec2 uv = applyVelocityField(setupUV(), pressureMag);
+  // Pixelate: snap this fragment to the corner of its pixelSize×pixelSize cell,
+  // so every fragment in a cell evaluates the wave at the same coord. The
+  // Bayer threshold below is also keyed on cellIdx, so the whole cell ends up
+  // a single quantized colour — same as the old 2-pass (wave → dither) output.
+  vec2 cellIdx     = floor(gl_FragCoord.xy / pixelSize);
+  vec2 sampleCoord = cellIdx * pixelSize;
 
-  vec2 coordUV = gl_FragCoord.xy / resolution.xy;
+  vec2 uv = sampleCoord / resolution.xy;
+  uv -= 0.5;
+  uv.x *= resolution.x / resolution.y;
+
+  float pressureMag;
+  uv = applyVelocityField(uv, sampleCoord, pressureMag);
+
+  vec2 coordUV = sampleCoord / resolution.xy;
   coordUV.y = 1.0 - coordUV.y;
   float aspect = resolution.x / resolution.y;
   uv = applySdfDisplacement(uv, coordUV, aspect);
@@ -181,5 +202,16 @@ void main() {
   float f = clamp(pattern(uv), 0.0, 1.0);
   f = applySdfs(f, coordUV);
   f = applyPressureDarkening(f, pressureMag);
-  gl_FragColor = vec4(vec3(f), 1.0);
+
+  // Ordered dither: pick threshold from the Bayer matrix indexed by cell, nudge
+  // f before quantizing so adjacent cells fall into different quantization
+  // buckets and produce the dithered pattern.
+  int bx = int(mod(cellIdx.x, 8.0));
+  int by = int(mod(cellIdx.y, 8.0));
+  float threshold = bayerMatrix8x8[by * 8 + bx] - 0.25;
+  float stepSize  = 1.0 / (colorNum - 1.0);
+  float q = clamp(f + threshold * stepSize, 0.0, 1.0);
+  q = floor(q * (colorNum - 1.0) + 0.5) / (colorNum - 1.0);
+
+  gl_FragColor = vec4(mix(backgroundColor, waveColor, q), 1.0);
 }
