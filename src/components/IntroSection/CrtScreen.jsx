@@ -1,4 +1,8 @@
 import { useEffect, useRef } from 'react'
+import * as THREE from 'three'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import crtVert from '../../three/shaders/wave.vert.glsl?raw'
+import crtFrag from '../../three/shaders/crt.frag.glsl?raw'
 
 const BASE = import.meta.env.BASE_URL
 
@@ -27,167 +31,105 @@ const VIDEO_SOURCES = [
 // Assign a random channel number (1-100) per video on load
 const channelNumbers = VIDEO_SOURCES.map(() => Math.floor(Math.random() * 100) + 1)
 
-const BG = '#37353E'
+const BG_HEX = 0x37353E
+const BG_CSS = '#37353E'
 
-// Background color as RGB components
-const BG_R = 0x37, BG_G = 0x35, BG_B = 0x3E
+// Keep in sync with crt.frag.glsl's transState encoding.
+const TRANS_PLAYING = 0
+const TRANS_DESAT = 1
+const TRANS_BLACK = 2
+const TRANS_PARTIAL = 3
 
-// Pre-computed lookup tables for CRT phosphor colors (indexed 0-255 by channel value)
-const CRT_LUT = (() => {
-  const rR = new Uint8Array(256), rG = new Uint8Array(256), rB = new Uint8Array(256)
-  const gR = new Uint8Array(256), gG = new Uint8Array(256), gB = new Uint8Array(256)
-  const bR = new Uint8Array(256), bG = new Uint8Array(256), bB = new Uint8Array(256)
-  for (let v = 0; v < 256; v++) {
-    rR[v] = Math.min(255, Math.round(v * 1.6 + 80))
-    rG[v] = Math.floor(v * 0.25)
-    rB[v] = Math.floor(v * 0.18)
-    gR[v] = Math.floor(v * 0.18)
-    gG[v] = Math.min(255, Math.round(v * 1.6 + 70))
-    gB[v] = Math.floor(v * 0.18)
-    bR[v] = Math.floor(v * 0.18)
-    bG[v] = Math.floor(v * 0.25)
-    bB[v] = Math.min(255, Math.round(v * 1.6 + 80))
-  }
-  return { rR, rG, rB, gR, gG, gB, bR, bG, bB }
-})()
+const DESAT_DURATION = 160
+const BLACK_DURATION = 300
+const PARTIAL_DURATION = 50
 
-// Reusable ImageData to avoid allocation each frame (scoped per-effect run via closure)
-let _crtImageData = null
-let _crtBuf = null
+const CELL_SIZE = 4
 
-function renderCRT(ctx, pixels, srcW, srcH, canvasW, canvasH, cellSize) {
-  const subW = Math.floor(cellSize / 4)
-  const gap = Math.max(0, Math.floor(cellSize / 12))
-  const totalBarW = subW * 3 + gap * 2
-  const padX = Math.floor((cellSize - totalBarW) / 2)
-  const maxH = cellSize - 2
-
-  // Reuse or create ImageData buffer
-  if (!_crtImageData || _crtImageData.width !== canvasW || _crtImageData.height !== canvasH) {
-    _crtImageData = ctx.createImageData(canvasW, canvasH)
-    _crtBuf = new Uint32Array(_crtImageData.data.buffer)
-  }
-  const buf32 = _crtBuf
-  const buf8 = _crtImageData.data
-
-  // Fill background
-  // Pack ABGR (little-endian: R at byte 0, then G, B, A)
-  const bgPixel = (255 << 24) | (BG_B << 16) | (BG_G << 8) | BG_R
-  buf32.fill(bgPixel)
-
-  const { rR, rG, rB, gR, gG, gB, bR, bG, bB } = CRT_LUT
-
-  for (let cy = 0; cy < canvasH; cy += cellSize) {
-    for (let cx = 0; cx < canvasW; cx += cellSize) {
-      const px = Math.min(cx, srcW - 1)
-      const py = Math.min(cy, srcH - 1)
-      // Chromatic bleed: offset R left, B right by 2px
-      const rxp = px > 1 ? px - 2 : 0
-      const bxp = px + 2 < srcW ? px + 2 : srcW - 1
-      const ri = (py * srcW + rxp) * 4
-      const gi = (py * srcW + px) * 4
-      const bi = (py * srcW + bxp) * 4
-      const r = pixels[ri]
-      const g = pixels[gi + 1]
-      const b = pixels[bi + 2]
-
-      // Channel values and LUT colors
-      const vals = [r, g, b]
-      const cR = [rR[r], gR[g], bR[b]]
-      const cG = [rG[r], gG[g], bG[b]]
-      const cB = [rB[r], gB[g], bB[b]]
-
-      for (let s = 0; s < 3; s++) {
-        const v = vals[s]
-        const intensity = v / 255
-        const alpha = 0.65 + 0.35 * intensity
-        const barH = Math.max(4, Math.round((0.4 + 0.6 * intensity) * maxH))
-        const barX = cx + padX + s * (subW + gap)
-        const barY = cy + cellSize - 1 - barH
-
-        // Blend bar color with alpha onto background
-        const cr = cR[s], cg = cG[s], cb = cB[s]
-        const blendR = (cr * alpha + BG_R * (1 - alpha)) | 0
-        const blendG = (cg * alpha + BG_G * (1 - alpha)) | 0
-        const blendB = (cb * alpha + BG_B * (1 - alpha)) | 0
-        const barPixel = (255 << 24) | (blendB << 16) | (blendG << 8) | blendR
-
-        // Draw the bar directly into the buffer
-        const xEnd = Math.min(barX + subW, canvasW)
-        const yEnd = Math.min(barY + barH, canvasH)
-        for (let y = barY; y < yEnd; y++) {
-          const rowOff = y * canvasW
-          for (let x = barX; x < xEnd; x++) {
-            buf32[rowOff + x] = barPixel
-          }
-        }
-
-        // Glow pass — wider bar with lower alpha, composited on existing content
-        if (intensity > 0.25) {
-          const glowAlpha = (intensity - 0.25) * 0.6
-          const invGlow = 1 - glowAlpha
-          const gx0 = Math.max(barX - 1, 0)
-          const gx1 = Math.min(barX + subW + 1, canvasW)
-          for (let y = barY; y < yEnd; y++) {
-            const rowOff = y * canvasW
-            for (let x = gx0; x < gx1; x++) {
-              const idx = (rowOff + x) * 4
-              buf8[idx]     = (cr * glowAlpha + buf8[idx]     * invGlow) | 0
-              buf8[idx + 1] = (cg * glowAlpha + buf8[idx + 1] * invGlow) | 0
-              buf8[idx + 2] = (cb * glowAlpha + buf8[idx + 2] * invGlow) | 0
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // Scanlines — darken every other cell row
-  for (let y = 0; y < canvasH; y += cellSize * 2) {
-    const slY = y + cellSize - 1
-    if (slY >= canvasH) break
-    const rowOff = slY * canvasW
-    for (let x = 0; x < canvasW; x++) {
-      const i = (rowOff + x) * 4
-      buf8[i]     = (buf8[i] * 0.94) | 0
-      buf8[i + 1] = (buf8[i + 1] * 0.94) | 0
-      buf8[i + 2] = (buf8[i + 2] * 0.94) | 0
-    }
-  }
-
-  ctx.putImageData(_crtImageData, 0, 0)
+function drawChannelText(ctx, w, h, idx) {
+  ctx.clearRect(0, 0, w, h)
+  const name = VIDEO_SOURCES[idx].channel
+  const num = String(channelNumbers[idx])
+  const numSize = Math.max(48, Math.round(w * 0.13))
+  const nameSize = Math.max(36, Math.round(w * 0.08))
+  const x = w - 20
+  const y = 20
+  ctx.textAlign = 'right'
+  ctx.textBaseline = 'top'
+  ctx.font = `${numSize}px "VT323", monospace`
+  ctx.fillStyle = '#ffffff'
+  ctx.fillText(`CH ${num}`, x, y)
+  ctx.font = `${nameSize}px "VT323", monospace`
+  ctx.fillStyle = '#cccccc'
+  ctx.fillText(name, x, y + numSize + 2)
 }
 
-export default function CrtScreen() {
-  const canvasRef = useRef(null)
-  const screenRef = useRef(null)
+function applyCurrentVideo(state, u) {
+  const v = state.videos[state.vidIndex]
+  u.videoTex.value = state.textures[state.vidIndex]
+  const canvasW = u.resolution.value.x
+  const canvasH = u.resolution.value.y
+  if (canvasW <= 0 || canvasH <= 0) return
+  const va = v.videoWidth && v.videoHeight ? v.videoWidth / v.videoHeight : 4 / 3
+  const ca = canvasW / canvasH
+  u.videoUvScaleX.value = ca / va
+}
 
-  useEffect(() => {
-    const canvas = canvasRef.current
-    const screen = screenRef.current
-    const ctx = canvas.getContext('2d')
-    const cellSize = 4
-    const offscreen = document.createElement('canvas')
-    const octx = offscreen.getContext('2d', { willReadFrequently: true })
-    let frameId = 0
-    let cancelled = false
+function redrawText(state) {
+  const w = state.textCanvas.width
+  const h = state.textCanvas.height
+  if (w === 0 || h === 0) return
+  drawChannelText(state.textCtx, w, h, state.vidIndex)
+  state.textTex.needsUpdate = true
+}
 
-    // Track ALL created video elements immediately (not after Promise.all resolves)
-    // so cleanup works even if component unmounts during loading.
-    const allCreatedVideos = []
-    // Set once videos load — stored here so cleanup can removeEventListener.
-    let onVideoEnded = null
+function CrtScene() {
+  const { size, viewport } = useThree()
+  const uniformsRef = useRef(null)
+  const stateRef = useRef(null)
 
-    function resize() {
-      const rect = screen.getBoundingClientRect()
-      canvas.width = Math.round(rect.width)
-      canvas.height = Math.round(rect.height)
+  if (uniformsRef.current == null) {
+    uniformsRef.current = {
+      videoTex: new THREE.Uniform(null),
+      textTex: new THREE.Uniform(null),
+      resolution: new THREE.Uniform(new THREE.Vector2(1, 1)),
+      videoUvScaleX: new THREE.Uniform(1),
+      bgColor: new THREE.Uniform(new THREE.Color(BG_HEX)),
+      cellSize: new THREE.Uniform(CELL_SIZE),
+      transState: new THREE.Uniform(TRANS_PLAYING),
+      partialDstStart: new THREE.Uniform(0),
+      partialSliceH: new THREE.Uniform(0),
+      textAlpha: new THREE.Uniform(1),
     }
-    resize()
-    window.addEventListener('resize', resize)
+  }
 
-    // Load all videos, then start the render loop
-    Promise.all(VIDEO_SOURCES.map(s => new Promise((resolve) => {
+  // One-time: create <video> elements, VideoTextures, text canvas/texture,
+  // wire the transition state machine. Kept in an effect with [] so the
+  // video objects survive resize events.
+  useEffect(() => {
+    const state = {
+      videos: [],
+      textures: [],
+      onVideoEnded: null,
+      ready: false,
+      vidIndex: 0,
+      nextVidIndex: 0,
+      transState: TRANS_PLAYING,
+      transStart: performance.now(),
+      partialOffsetY: 0,
+      textCanvas: document.createElement('canvas'),
+      textCtx: null,
+      textTex: null,
+    }
+    state.textCtx = state.textCanvas.getContext('2d')
+    state.textTex = new THREE.CanvasTexture(state.textCanvas)
+    state.textTex.minFilter = THREE.LinearFilter
+    state.textTex.magFilter = THREE.LinearFilter
+    state.textTex.generateMipmaps = false
+    uniformsRef.current.textTex.value = state.textTex
+    stateRef.current = state
+
+    VIDEO_SOURCES.forEach((s) => {
       const video = document.createElement('video')
       video.src = s.url
       video.muted = true
@@ -196,184 +138,144 @@ export default function CrtScreen() {
       video.crossOrigin = 'anonymous'
       video.style.display = 'none'
       document.body.appendChild(video)
-      allCreatedVideos.push(video) // Track immediately for cleanup
-      const done = () => resolve(video)
-      video.addEventListener('loadedmetadata', done, { once: true })
-      video.addEventListener('error', done, { once: true })
-      setTimeout(done, 3000)
-    }))).then((allVideos) => {
-      if (cancelled) return
-
-      let vidIndex = Math.floor(Math.random() * allVideos.length)
-      let currentVideo = allVideos[vidIndex]
-
-      // Channel-flip transition state machine
-      // States: 'playing' | 'desat' | 'black' | 'partial'
-      let transState = 'playing'
-      let transStart = 0
-      let nextVidIndex = 0
-      let partialOffsetY = 0
-
-      const DESAT_DURATION = 160    // ms
-      const BLACK_DURATION = 300   // ms
-      const PARTIAL_DURATION = 50  // ms — single frame flash
-
-      function drawVideoContain(octx, video, w, h) {
-        octx.fillStyle = BG
-        octx.fillRect(0, 0, w, h)
-        if (video.videoWidth === 0 || video.videoHeight === 0) return
-        // Scale to full height, crop sides to fit 4:3 canvas
-        const scale = h / video.videoHeight
-        const dw = video.videoWidth * scale
-        const dx = (w - dw) / 2
-        octx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight, dx, 0, dw, h)
-      }
-
-      function desaturatePixels(data) {
-        for (let i = 0; i < data.length; i += 4) {
-          const avg = (data[i] + data[i + 1] + data[i + 2]) / 3
-          data[i]     = (data[i] + avg) / 2
-          data[i + 1] = (data[i + 1] + avg) / 2
-          data[i + 2] = (data[i + 2] + avg) / 2
-        }
-      }
-
-      // Draw channel text onto the offscreen canvas so it goes through CRT rendering
-      function drawChannelText(octx, w, idx) {
-        const name = VIDEO_SOURCES[idx].channel
-        const num = String(channelNumbers[idx])
-        const numSize = Math.max(48, Math.round(w * 0.13))
-        const nameSize = Math.max(36, Math.round(w * 0.08))
-        const x = w - 20
-        const y = 20
-        octx.save()
-        octx.textAlign = 'right'
-        octx.textBaseline = 'top'
-        // Channel number
-        octx.font = `${numSize}px "VT323", monospace`
-        octx.fillStyle = '#ffffff'
-        octx.fillText(`CH ${num}`, x, y)
-        // Channel name below
-        octx.font = `${nameSize}px "VT323", monospace`
-        octx.fillStyle = '#cccccc'
-        octx.fillText(name, x, y + numSize + 2)
-        octx.restore()
-      }
-
-      // Start playing the first video
-      currentVideo.play().catch(() => {})
-
-      // When a video ends, begin channel-flip transition
-      onVideoEnded = function onVideoEnded() {
-        if (cancelled || transState !== 'playing') return
-        transState = 'desat'
-        transStart = performance.now()
-        let next
-        do { next = Math.floor(Math.random() * allVideos.length) } while (next === vidIndex && allVideos.length > 1)
-        nextVidIndex = next
-        partialOffsetY = Math.random() * (canvas.height * 2 / 3)
-      }
-
-      // Attach ended listener to all videos
-      allVideos.forEach(v => v.addEventListener('ended', onVideoEnded))
-
-      const FRAME_INTERVAL = 1000 / 24  // 24 fps
-      let lastFrameTime = 0
-
-      function render(t) {
-        if (cancelled) return
-
-        if (t - lastFrameTime < FRAME_INTERVAL) {
-          frameId = requestAnimationFrame(render)
-          return
-        }
-        lastFrameTime = t
-
-        const w = canvas.width
-        const h = canvas.height
-        if (offscreen.width !== w) offscreen.width = w
-        if (offscreen.height !== h) offscreen.height = h
-
-        if (transState === 'playing') {
-          if (currentVideo.videoWidth > 0) {
-            drawVideoContain(octx, currentVideo, w, h)
-            drawChannelText(octx, w, vidIndex)
-            const { data } = octx.getImageData(0, 0, w, h)
-            renderCRT(ctx, data, w, h, w, h, cellSize)
-          } else {
-            ctx.fillStyle = BG
-            ctx.fillRect(0, 0, w, h)
-          }
-        } else if (transState === 'desat') {
-          if (currentVideo.videoWidth > 0) {
-            drawVideoContain(octx, currentVideo, w, h)
-            const imgData = octx.getImageData(0, 0, w, h)
-            desaturatePixels(imgData.data)
-            renderCRT(ctx, imgData.data, w, h, w, h, cellSize)
-          }
-          if (t - transStart >= DESAT_DURATION) {
-            transState = 'black'
-            transStart = t
-          }
-        } else if (transState === 'black') {
-          ctx.fillStyle = BG
-          ctx.fillRect(0, 0, w, h)
-          if (t - transStart >= BLACK_DURATION) {
-            transState = 'partial'
-            transStart = t
-            // Switch to next video
-            currentVideo.pause()
-            currentVideo.currentTime = 0
-            vidIndex = nextVidIndex
-            currentVideo = allVideos[vidIndex]
-            currentVideo.currentTime = 0
-          }
-        } else if (transState === 'partial') {
-          if (currentVideo.videoWidth > 0) {
-            drawVideoContain(octx, currentVideo, w, h)
-            drawChannelText(octx, w, vidIndex)
-            const fullData = octx.getImageData(0, 0, w, h)
-            const sliceData = new Uint8ClampedArray(fullData.data.length)
-            const sliceH = Math.floor(h / 3)
-            const srcStart = 0
-            const dstStart = Math.floor(partialOffsetY)
-            for (let row = 0; row < sliceH && (row + dstStart) < h; row++) {
-              const si = (srcStart + row) * w * 4
-              const di = (dstStart + row) * w * 4
-              sliceData.set(fullData.data.subarray(si, si + w * 4), di)
-            }
-            renderCRT(ctx, sliceData, w, h, w, h, cellSize)
-          }
-          if (t - transStart >= PARTIAL_DURATION) {
-            transState = 'playing'
-            currentVideo.play().catch(() => {})
-          }
-        }
-
-        frameId = requestAnimationFrame(render)
-      }
-
-      frameId = requestAnimationFrame(render)
+      const tex = new THREE.VideoTexture(video)
+      tex.minFilter = THREE.LinearFilter
+      tex.magFilter = THREE.LinearFilter
+      tex.generateMipmaps = false
+      state.videos.push(video)
+      state.textures.push(tex)
     })
+
+    let cancelled = false
+
+    Promise.all(state.videos.map((v) => new Promise((resolve) => {
+      const done = () => resolve()
+      v.addEventListener('loadedmetadata', done, { once: true })
+      v.addEventListener('error', done, { once: true })
+      setTimeout(done, 3000)
+    }))).then(() => {
+      if (cancelled) return
+      state.vidIndex = Math.floor(Math.random() * state.videos.length)
+      applyCurrentVideo(state, uniformsRef.current)
+      redrawText(state)
+      state.videos[state.vidIndex].play().catch(() => {})
+
+      state.onVideoEnded = function () {
+        if (cancelled || state.transState !== TRANS_PLAYING) return
+        state.transState = TRANS_DESAT
+        state.transStart = performance.now()
+        let next
+        do {
+          next = Math.floor(Math.random() * state.videos.length)
+        } while (next === state.vidIndex && state.videos.length > 1)
+        state.nextVidIndex = next
+        state.partialOffsetY = Math.random() * (uniformsRef.current.resolution.value.y * 2 / 3)
+      }
+      state.videos.forEach((v) => v.addEventListener('ended', state.onVideoEnded))
+      state.ready = true
+    })
+
+    // VT323 may still be loading at initial draw — redraw once it's ready.
+    if (typeof document !== 'undefined' && document.fonts && document.fonts.load) {
+      document.fonts.load('48px "VT323"').then(() => {
+        if (!cancelled && state.ready) redrawText(state)
+      }).catch(() => {})
+    }
 
     return () => {
       cancelled = true
-      cancelAnimationFrame(frameId)
-      window.removeEventListener('resize', resize)
-      // Clean up all videos including those still loading (allCreatedVideos
-      // is populated immediately when each element is created, before Promise.all resolves)
-      allCreatedVideos.forEach(v => {
-        if (onVideoEnded) v.removeEventListener('ended', onVideoEnded)
+      if (state.onVideoEnded) {
+        state.videos.forEach((v) => v.removeEventListener('ended', state.onVideoEnded))
+      }
+      state.videos.forEach((v) => {
         v.pause()
         v.removeAttribute('src')
-        v.load() // Required: forces browser to release buffered media data
+        v.load()
         v.remove()
       })
-      // Allow GC of the module-level ImageData buffer (sized to this canvas)
-      _crtImageData = null
-      _crtBuf = null
+      state.textures.forEach((t) => t.dispose())
+      if (state.textTex) state.textTex.dispose()
     }
   }, [])
+
+  // Resize: sync resolution uniform + text canvas dimensions. Text canvas
+  // matches screen size for crisp glyphs at the exact same positions as the
+  // original CPU code (offsets in drawChannelText are in canvas pixels).
+  useEffect(() => {
+    const u = uniformsRef.current
+    const w = Math.max(1, Math.round(size.width))
+    const h = Math.max(1, Math.round(size.height))
+    u.resolution.value.set(w, h)
+    const state = stateRef.current
+    if (!state) return
+    if (state.textCanvas.width !== w || state.textCanvas.height !== h) {
+      state.textCanvas.width = w
+      state.textCanvas.height = h
+    }
+    if (state.ready) {
+      redrawText(state)
+      applyCurrentVideo(state, u)
+    }
+  }, [size.width, size.height])
+
+  useFrame(() => {
+    const state = stateRef.current
+    if (!state || !state.ready) return
+    const u = uniformsRef.current
+    const t = performance.now()
+
+    u.videoTex.value = state.textures[state.vidIndex]
+
+    if (state.transState === TRANS_PLAYING) {
+      u.transState.value = TRANS_PLAYING
+      u.textAlpha.value = 1
+    } else if (state.transState === TRANS_DESAT) {
+      u.transState.value = TRANS_DESAT
+      u.textAlpha.value = 0
+      if (t - state.transStart >= DESAT_DURATION) {
+        state.transState = TRANS_BLACK
+        state.transStart = t
+      }
+    } else if (state.transState === TRANS_BLACK) {
+      u.transState.value = TRANS_BLACK
+      if (t - state.transStart >= BLACK_DURATION) {
+        state.transState = TRANS_PARTIAL
+        state.transStart = t
+        const cur = state.videos[state.vidIndex]
+        cur.pause()
+        cur.currentTime = 0
+        state.vidIndex = state.nextVidIndex
+        applyCurrentVideo(state, u)
+        redrawText(state)
+        state.videos[state.vidIndex].currentTime = 0
+      }
+    } else if (state.transState === TRANS_PARTIAL) {
+      u.transState.value = TRANS_PARTIAL
+      u.textAlpha.value = 1
+      u.partialSliceH.value = Math.floor(u.resolution.value.y / 3)
+      u.partialDstStart.value = Math.floor(state.partialOffsetY)
+      if (t - state.transStart >= PARTIAL_DURATION) {
+        state.transState = TRANS_PLAYING
+        state.videos[state.vidIndex].play().catch(() => {})
+      }
+    }
+  })
+
+  return (
+    <mesh scale={[viewport.width, viewport.height, 1]}>
+      <planeGeometry args={[1, 1]} />
+      <shaderMaterial
+        vertexShader={crtVert}
+        fragmentShader={crtFrag}
+        // eslint-disable-next-line react-hooks/refs
+        uniforms={uniformsRef.current}
+      />
+    </mesh>
+  )
+}
+
+export default function CrtScreen() {
+  const screenRef = useRef(null)
 
   return (
     <div
@@ -384,16 +286,17 @@ export default function CrtScreen() {
         position: 'relative',
         border: '6px solid #0a0a0a',
         overflow: 'hidden',
+        background: BG_CSS,
       }}
     >
-      <canvas
-        ref={canvasRef}
-        style={{
-          display: 'block',
-          width: '100%',
-          height: '100%',
-        }}
-      />
+      <Canvas
+        dpr={1}
+        camera={{ position: [0, 0, 6] }}
+        gl={{ antialias: false, outputColorSpace: THREE.LinearSRGBColorSpace }}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
+      >
+        <CrtScene />
+      </Canvas>
       {/* Vignette — darkens edges to simulate curved glass */}
       <div
         style={{
