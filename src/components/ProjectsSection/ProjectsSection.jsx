@@ -1,9 +1,9 @@
-import { useState, useRef, useMemo } from 'react'
-import { motion, useInView, LayoutGroup } from 'framer-motion'
+import { useState, useRef, useMemo, useCallback } from 'react'
 import ScrollArrow from '../ScrollArrow'
 import ProjectCard from './ProjectCard'
 import BoxSdfFrame from '../BoxSdfFrame/BoxSdfFrame'
 import { useScrollColorTransition } from '../../bridge/useScrollColorTransition'
+import { useInView } from '../../bridge/useInView'
 
 const BASE = import.meta.env.BASE_URL
 
@@ -86,20 +86,31 @@ const PROJECTS = [
 
 export default function ProjectsSection() {
   const [selectedId, setSelectedId] = useState(null)
-  const sectionRef = useRef(null)
+  const [sectionRef, isInView] = useInView({ amount: 0.2 })
   const headingRef = useRef(null)
-  const isInView = useInView(sectionRef, { amount: 0.2 })
   useScrollColorTransition(sectionRef, SECTION_COLOR, PREV_COLOR)
 
-  function handleSelect(id) {
+  // Wrap reorder + resize in View Transitions so the layout morph is animated
+  // by the browser. Progressive enhancement — falls back to an instant swap on
+  // browsers without the API (Safari < 18).
+  const handleSelect = useCallback((id) => {
     if (id !== null && selectedId === null && headingRef.current) {
       const top = headingRef.current.getBoundingClientRect().top + window.scrollY
       requestAnimationFrame(() => {
         requestAnimationFrame(() => window.scrollTo({ top, behavior: 'smooth' }))
       })
     }
-    setSelectedId(id)
-  }
+    const next = id
+    const update = () => setSelectedId(next)
+    if (typeof document !== 'undefined' && document.startViewTransition) {
+      document.startViewTransition(() => {
+        update()
+        return Promise.resolve()
+      })
+    } else {
+      update()
+    }
+  }, [selectedId])
 
   const sortedProjects = useMemo(() =>
     selectedId ? [ PROJECTS.find((p) => p.id === selectedId), ...PROJECTS.filter((p) => p.id !== selectedId) ] : PROJECTS,
@@ -109,21 +120,30 @@ export default function ProjectsSection() {
   return (
     <BoxSdfFrame>
     <section id="projects" ref={sectionRef} style={{ position: 'relative', minHeight: '100vh', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6rem 2rem', color: '#37353E' }}>
-      <motion.div initial={{ opacity: 0, y: 40 }} animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }} transition={{ duration: 0.7, ease: 'easeOut' }} style={{ width: '100%', maxWidth: '900px', textAlign: 'center' }}>
+      <div className="reveal reveal-up" data-visible={isInView} style={{ width: '100%', maxWidth: '900px', textAlign: 'center' }}>
         <h2 ref={headingRef} style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 700, letterSpacing: '-0.02em', marginBottom: '3rem' }}>
           Projects
         </h2>
-        <LayoutGroup>
-          <motion.div layout style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', justifyContent: 'center' }}>
-            {sortedProjects.map((project) => (
-              <ProjectCard key={project.id} project={project} isSelected={selectedId === project.id} selectedId={selectedId} onSelect={handleSelect} />
-            ))}
-          </motion.div>
-        </LayoutGroup>
-      </motion.div>
-      <motion.div initial={{ opacity: 0 }} animate={isInView ? { opacity: 1 } : { opacity: 0 }} transition={{ delay: 0.5, duration: 0.6 }} style={{ position: 'relative', width: '100%', marginTop: '4rem', display: 'flex', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', justifyContent: 'center' }}>
+          {sortedProjects.map((project) => (
+            <ProjectCard key={project.id} project={project} isSelected={selectedId === project.id} selectedId={selectedId} onSelect={handleSelect} />
+          ))}
+        </div>
+      </div>
+      <div
+        className="reveal"
+        data-visible={isInView}
+        style={{
+          '--delay': '0.5s',
+          position: 'relative',
+          width: '100%',
+          marginTop: '4rem',
+          display: 'flex',
+          justifyContent: 'center',
+        }}
+      >
         <ScrollArrow label="skills" targetId="skills" style={{ color: '#44444E' }} />
-      </motion.div>
+      </div>
     </section>
     </BoxSdfFrame>
   )

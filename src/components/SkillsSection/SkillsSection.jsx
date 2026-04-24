@@ -1,9 +1,8 @@
-import { motion, useInView } from 'framer-motion'
-import { useRef } from 'react'
 import ScrollArrow from '../ScrollArrow'
 import SkillGroup from './SkillGroup'
 import BoxSdfFrame from '../BoxSdfFrame/BoxSdfFrame'
 import { useScrollColorTransition } from '../../bridge/useScrollColorTransition'
+import { useInView } from '../../bridge/useInView'
 
 const SECTION_COLOR = [0.267, 0.267, 0.306]
 const PREV_COLOR    = [0.443, 0.353, 0.353]
@@ -51,8 +50,7 @@ const GAME_DEVELOPMENT = {
 }
 
 export default function SkillsSection() {
-  const sectionRef = useRef(null)
-  const isInView = useInView(sectionRef, { amount: 0.2 })
+  const [sectionRef, isInView] = useInView({ amount: 0.2 })
   useScrollColorTransition(sectionRef, SECTION_COLOR, PREV_COLOR)
 
   return (
@@ -72,10 +70,9 @@ export default function SkillsSection() {
         color: '#D3DAD9',
       }}
     >
-      <motion.div
-        initial={{ opacity: 0, y: 40 }}
-        animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
-        transition={{ duration: 0.7, ease: 'easeOut' }}
+      <div
+        className="reveal reveal-up"
+        data-visible={isInView}
         style={{
           width: '100%',
           maxWidth: '900px',
@@ -107,13 +104,13 @@ export default function SkillsSection() {
         />
 
         <SkillGroup group={GAME_DEVELOPMENT} isInView={isInView} />
-      </motion.div>
+      </div>
 
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={isInView ? { opacity: 1 } : { opacity: 0 }}
-        transition={{ delay: 0.5, duration: 0.6 }}
+      <div
+        className="reveal"
+        data-visible={isInView}
         style={{
+          '--delay': '0.5s',
           position: 'relative',
           width: '100%',
           marginTop: '4rem',
@@ -122,7 +119,7 @@ export default function SkillsSection() {
         }}
       >
         <ScrollArrow label="work experience" targetId="work-experience" style={{ color: '#715A5A' }} />
-      </motion.div>
+      </div>
     </section>
     </BoxSdfFrame>
   )

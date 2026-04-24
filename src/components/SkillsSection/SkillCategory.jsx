@@ -1,27 +1,10 @@
-import { motion } from 'framer-motion'
-
-const containerVariants = {
-  hidden: {},
-  show: {
-    transition: {
-      staggerChildren: 0.12,
-    },
-  },
-}
-
-const categoryVariants = {
-  hidden: { opacity: 0, y: 28 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } },
-}
-
-const skillVariants = {
-  hidden: { opacity: 0, scale: 0.85 },
-  show: { opacity: 1, scale: 1, transition: { duration: 0.35, ease: 'easeOut' } },
-}
-
-export default function SkillCategory({ category, items }) {
+export default function SkillCategory({ category, items, isInView, delay = 0 }) {
   return (
-    <motion.div variants={categoryVariants} style={{ textAlign: 'center' }}>
+    <div
+      className="reveal reveal-up-sm reveal-medium"
+      data-visible={isInView}
+      style={{ textAlign: 'center', '--delay': `${delay}s` }}
+    >
       <p
         style={{
           fontSize: '0.7rem',
@@ -35,10 +18,7 @@ export default function SkillCategory({ category, items }) {
         {category}
       </p>
 
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="show"
+      <div
         style={{
           display: 'flex',
           flexWrap: 'wrap',
@@ -46,11 +26,13 @@ export default function SkillCategory({ category, items }) {
           justifyContent: 'center',
         }}
       >
-        {items.map((skill) => (
-          <motion.span
+        {items.map((skill, i) => (
+          <span
             key={skill}
-            variants={skillVariants}
+            className="reveal reveal-scale reveal-fast"
+            data-visible={isInView}
             style={{
+              '--delay': `${delay + i * 0.06}s`,
               fontSize: '0.88rem',
               fontWeight: 500,
               padding: '0.4rem 0.9rem',
@@ -62,9 +44,9 @@ export default function SkillCategory({ category, items }) {
             }}
           >
             {skill}
-          </motion.span>
+          </span>
         ))}
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   )
 }

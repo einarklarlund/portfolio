@@ -1,0 +1,61 @@
+/* Scroll-reveal primitives. Each element starts in the "hidden" state
+ * (opacity 0, transformed) and animates to rest when [data-visible="true"]
+ * is set by the useInView observer. Stagger via inline --delay. */
+
+.reveal {
+  opacity: 0;
+  transition:
+    opacity 0.7s ease-out var(--delay, 0s),
+    transform 0.7s ease-out var(--delay, 0s);
+  will-change: opacity, transform;
+}
+.reveal[data-visible="true"] {
+  opacity: 1;
+  transform: none;
+}
+
+.reveal-up     { transform: translateY(40px); }
+.reveal-up-sm  { transform: translateY(28px); }
+.reveal-left   { transform: translateX(-24px); }
+.reveal-scale  { transform: scale(0.85); }
+
+/* Shorter durations for small pills / child items */
+.reveal-fast {
+  transition-duration: 0.35s, 0.35s;
+}
+.reveal-medium {
+  transition-duration: 0.6s, 0.6s;
+}
+
+/* Collapsible details — height auto via grid-rows trick, no JS */
+.collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.4s ease-out;
+}
+.collapse[data-open="true"] {
+  grid-template-rows: 1fr;
+}
+.collapse > .collapse-inner {
+  overflow: hidden;
+  min-height: 0;
+  opacity: 0;
+  transition: opacity 0.4s ease-out;
+}
+.collapse[data-open="true"] > .collapse-inner {
+  opacity: 1;
+}
+
+/* Respect reduced-motion preference — skip the animation, just show. */
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal[data-visible="true"],
+  .collapse,
+  .collapse[data-open="true"] {
+    transition: none;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}

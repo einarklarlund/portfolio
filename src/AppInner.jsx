@@ -5,9 +5,8 @@ import IntroSection from './components/IntroSection/IntroSection'
 // chunk that isn't parsed during initial page load.
 const BackgroundCanvas = lazy(() => import('./three/BackgroundCanvas'))
 
-// Below-the-fold sections: split out so framer-motion's heavier APIs
-// (LayoutGroup, useInView, AnimatePresence) and the section code don't land
-// in the main chunk's parse path.
+// Below-the-fold sections: split out so their code + CSS-reveal observers
+// don't land in the main chunk's parse path.
 const ProjectsSection = lazy(() => import('./components/ProjectsSection/ProjectsSection'))
 const SkillsSection = lazy(() => import('./components/SkillsSection/SkillsSection'))
 const WorkExperienceSection = lazy(() => import('./components/WorkExperienceSection/WorkExperienceSection'))

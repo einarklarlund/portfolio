@@ -1,19 +1,14 @@
-import { motion } from 'framer-motion'
-
-const entryVariants = {
-  hidden: { opacity: 0, x: -24 },
-  show: { opacity: 1, x: 0, transition: { duration: 0.6, ease: 'easeOut' } },
-}
-
-export default function TimelineEntry({ entry, isLast }) {
+export default function TimelineEntry({ entry, isLast, isInView, delay = 0 }) {
   return (
-    <motion.div
-      variants={entryVariants}
+    <div
+      className="reveal reveal-left reveal-medium"
+      data-visible={isInView}
       style={{
         display: 'grid',
         gridTemplateColumns: '1fr 2rem 1fr',
         gap: '0 1.5rem',
         position: 'relative',
+        '--delay': `${delay}s`,
       }}
     >
       {/* Left: period */}
@@ -123,6 +118,6 @@ export default function TimelineEntry({ entry, isLast }) {
           ))}
         </div>
       </div>
-    </motion.div>
+    </div>
   )
 }

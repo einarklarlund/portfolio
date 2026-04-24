@@ -1,14 +1,4 @@
-import { motion } from 'framer-motion'
 import SkillCategory from './SkillCategory'
-
-const containerVariants = {
-  hidden: {},
-  show: {
-    transition: {
-      staggerChildren: 0.12,
-    },
-  },
-}
 
 export default function SkillGroup({ group, isInView }) {
   return (
@@ -36,20 +26,23 @@ export default function SkillGroup({ group, isInView }) {
         {group.subtitle}
       </p>
 
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate={isInView ? 'show' : 'hidden'}
+      <div
         style={{
           display: 'grid',
           gridTemplateColumns: `repeat(auto-fit, minmax(200px, 1fr))`,
           gap: '3rem 2rem',
         }}
       >
-        {group.categories.map((cat) => (
-          <SkillCategory key={cat.category} category={cat.category} items={cat.items} />
+        {group.categories.map((cat, i) => (
+          <SkillCategory
+            key={cat.category}
+            category={cat.category}
+            items={cat.items}
+            isInView={isInView}
+            delay={i * 0.12}
+          />
         ))}
-      </motion.div>
+      </div>
     </div>
   )
 }

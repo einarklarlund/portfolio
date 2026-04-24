@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react'
-import { motion } from 'framer-motion'
 
 export default function ProjectThumbnail({ color, videos, active }) {
   const [vidIndex, setVidIndex] = useState(0)
@@ -55,34 +54,6 @@ export default function ProjectThumbnail({ color, videos, active }) {
             objectFit: 'cover', borderRadius: '8px',
           }}
         />
-      )}
-
-      {/* Fallback hover effect for projects without videos */}
-      {!hasVideos && (
-        <div
-          style={{
-            position: 'absolute', inset: 0, opacity: active ? 1 : 0, transition: 'opacity 0.3s',
-            background: `radial-gradient(circle at ${active ? '60% 40%' : '50% 50%'}, ${color}88, ${color}22)`,
-          }}
-        >
-          <motion.div
-            animate={active ? { x: [0, 30, -20, 10, 0], y: [0, -15, 25, -10, 0] } : {}}
-            transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
-            style={{
-              position: 'absolute', top: '50%', left: '50%', width: '20px', height: '20px',
-              marginLeft: '-10px', marginTop: '-10px', background: color, borderRadius: '50%',
-              boxShadow: `0 0 20px ${color}, 0 0 40px ${color}66`,
-            }}
-          />
-          <motion.div
-            animate={active ? { x: [0, -40, 20, -30, 0], y: [0, 20, -30, 15, 0] } : {}}
-            transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
-            style={{
-              position: 'absolute', top: '30%', left: '30%', width: '12px', height: '12px',
-              background: `${color}aa`, borderRadius: '50%', boxShadow: `0 0 15px ${color}44`,
-            }}
-          />
-        </div>
       )}
     </div>
   )

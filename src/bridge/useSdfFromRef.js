@@ -8,8 +8,8 @@ import { useDitherStore } from '../store/ditherStore'
 // useSdfUniforms and smoothly lerps intensity/falloff toward the targets.
 //
 // Position is never written from React — three.js reads the bounding rect on
-// its own tick. This means layout animations (framer-motion, CSS transitions)
-// track perfectly without any polling on the React side.
+// its own tick. This means layout animations (CSS transitions, View
+// Transitions) track perfectly without any polling on the React side.
 export function useSdfFromRef(ref, { type = 'box_outline', intensity = 0, falloff = 0, radius = 0 } = {}) {
   const id = useId()
   const registerSdf = useDitherStore((s) => s.registerSdf)

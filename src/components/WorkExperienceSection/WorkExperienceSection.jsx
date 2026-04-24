@@ -1,8 +1,7 @@
-import { motion, useInView } from 'framer-motion'
-import { useRef } from 'react'
 import TimelineEntry from './TimelineEntry'
 import BoxSdfFrame from '../BoxSdfFrame/BoxSdfFrame'
 import { useScrollColorTransition } from '../../bridge/useScrollColorTransition'
+import { useInView } from '../../bridge/useInView'
 
 const SECTION_COLOR = [0.827, 0.855, 0.851]
 const PREV_COLOR    = [0.267, 0.267, 0.306]
@@ -46,18 +45,8 @@ const EXPERIENCE = [
   },
 ]
 
-const containerVariants = {
-  hidden: {},
-  show: {
-    transition: {
-      staggerChildren: 0.15,
-    },
-  },
-}
-
 export default function WorkExperienceSection() {
-  const sectionRef = useRef(null)
-  const isInView = useInView(sectionRef, { amount: 0.1 })
+  const [sectionRef, isInView] = useInView({ amount: 0.1 })
   useScrollColorTransition(sectionRef, SECTION_COLOR, PREV_COLOR)
 
   return (
@@ -77,10 +66,9 @@ export default function WorkExperienceSection() {
         color: '#37353E',
       }}
     >
-      <motion.div
-        initial={{ opacity: 0, y: 40 }}
-        animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
-        transition={{ duration: 0.7, ease: 'easeOut' }}
+      <div
+        className="reveal reveal-up"
+        data-visible={isInView}
         style={{
           width: '100%',
           maxWidth: '900px',
@@ -98,21 +86,18 @@ export default function WorkExperienceSection() {
           Work Experience
         </h2>
 
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate={isInView ? 'show' : 'hidden'}
-          style={{ textAlign: 'left' }}
-        >
+        <div style={{ textAlign: 'left' }}>
           {EXPERIENCE.map((entry, i) => (
             <TimelineEntry
               key={entry.id}
               entry={entry}
               isLast={i === EXPERIENCE.length - 1}
+              isInView={isInView}
+              delay={i * 0.15}
             />
           ))}
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
     </section>
     </BoxSdfFrame>
   )
