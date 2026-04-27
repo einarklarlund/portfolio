@@ -3,8 +3,8 @@ import BoxSdfFrame from '../BoxSdfFrame/BoxSdfFrame'
 import { useScrollColorTransition } from '../../bridge/useScrollColorTransition'
 import { useInView } from '../../bridge/useInView'
 
-const SECTION_COLOR = [0.827, 0.855, 0.851]
-const PREV_COLOR    = [0.267, 0.267, 0.306]
+const SECTION_COLOR = [0.347, 0.347, 0.398]
+const PREV_COLOR    = [0.303, 0.296, 0.343]
 
 const EXPERIENCE = [
   {

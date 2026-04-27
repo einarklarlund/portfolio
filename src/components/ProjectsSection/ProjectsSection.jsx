@@ -7,7 +7,7 @@ import { useInView } from '../../bridge/useInView'
 
 const BASE = import.meta.env.BASE_URL
 
-const SECTION_COLOR = [0.443, 0.353, 0.353]
+const SECTION_COLOR = [0.325, 0.322, 0.371]
 const PREV_COLOR    = [0.216, 0.208, 0.243]
 
 const PROJECTS = [
