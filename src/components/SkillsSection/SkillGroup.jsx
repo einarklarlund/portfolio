@@ -3,7 +3,7 @@ import BoxSdfFrame from '../BoxSdfFrame/BoxSdfFrame'
 
 export default function SkillGroup({ group, isInView }) {
   return (
-    <BoxSdfFrame active={isInView} intensity={0.25} falloff={0.04}>
+    <BoxSdfFrame active={isInView} intensity={0.25} falloff={0.12}>
     <div
       className="reveal reveal-up"
       data-visible={isInView}
@@ -23,7 +23,7 @@ export default function SkillGroup({ group, isInView }) {
       <p
         style={{
           fontSize: '0.85rem',
-          color: '#715A5A',
+          color: '#D3DAD9',
           lineHeight: 1.6,
           maxWidth: '550px',
           margin: '0 auto 2.5rem',

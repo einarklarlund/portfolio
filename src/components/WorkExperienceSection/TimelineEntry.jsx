@@ -23,7 +23,7 @@ export default function TimelineEntry({ entry, isLast, isInView, delay = 0 }) {
           style={{
             fontSize: '0.75rem',
             letterSpacing: '0.1em',
-            color: '#37353E',
+            color: '#D3DAD9',
             fontWeight: 500,
           }}
         >
@@ -70,7 +70,7 @@ export default function TimelineEntry({ entry, isLast, isInView, delay = 0 }) {
           style={{
             fontSize: '1rem',
             fontWeight: 700,
-            color: '#37353E',
+            color: '#D3DAD9',
             marginBottom: '0.2rem',
             letterSpacing: '-0.01em',
           }}
@@ -81,7 +81,7 @@ export default function TimelineEntry({ entry, isLast, isInView, delay = 0 }) {
           style={{
             fontSize: '0.8rem',
             fontWeight: 500,
-            color: '#37353E',
+            color: '#D3DAD9',
             marginBottom: '0.75rem',
             letterSpacing: '0.05em',
             textTransform: 'uppercase',
@@ -92,7 +92,7 @@ export default function TimelineEntry({ entry, isLast, isInView, delay = 0 }) {
         <p
           style={{
             fontSize: '0.88rem',
-            color: '#37353E',
+            color: '#D3DAD9',
             lineHeight: 1.65,
             marginBottom: '0.85rem',
           }}
@@ -110,7 +110,7 @@ export default function TimelineEntry({ entry, isLast, isInView, delay = 0 }) {
                 borderRadius: '999px',
                 background: 'rgba(55,53,62,0.1)',
                 border: '1px solid rgba(55,53,62,0.2)',
-                color: '#37353E',
+                color: '#D3DAD9',
               }}
             >
               {tag}

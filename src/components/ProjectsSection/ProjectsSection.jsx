@@ -118,7 +118,7 @@ export default function ProjectsSection() {
   )
 
   return (
-    <section id="projects" ref={sectionRef} style={{ position: 'relative', minHeight: '100vh', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6rem 2rem', color: '#37353E' }}>
+    <section id="projects" ref={sectionRef} style={{ position: 'relative', minHeight: '100vh', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6rem 2rem', color: '#D3DAD9' }}>
       <div style={{ width: '100%', maxWidth: '900px', textAlign: 'center' }}>
         <BoxSdfFrame active={isInView} style={{ display: 'inline-block', width: 'auto', marginBottom: '3rem' }}>
           <h2 ref={headingRef} className="reveal reveal-up" data-visible={isInView} style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 700, letterSpacing: '-0.02em', margin: 0, padding: '0.4rem 1.2rem' }}>
@@ -147,7 +147,7 @@ export default function ProjectsSection() {
           justifyContent: 'center',
         }}
       >
-        <ScrollArrow label="skills" targetId="skills" style={{ color: '#44444E' }} />
+        <ScrollArrow label="skills" targetId="skills" style={{ color: '#D3DAD9' }} />
       </div>
     </section>
   )

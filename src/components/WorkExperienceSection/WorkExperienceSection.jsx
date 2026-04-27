@@ -62,7 +62,7 @@ export default function WorkExperienceSection() {
         alignItems: 'center',
         justifyContent: 'center',
         padding: '6rem 2rem',
-        color: '#37353E',
+        color: '#D3DAD9',
       }}
     >
       <div

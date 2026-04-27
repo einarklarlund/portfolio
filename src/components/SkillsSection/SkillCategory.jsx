@@ -10,7 +10,7 @@ export default function SkillCategory({ category, items, isInView, delay = 0 }) 
           fontSize: '0.7rem',
           letterSpacing: '0.2em',
           textTransform: 'uppercase',
-          color: '#715A5A',
+          color: '#D3DAD9',
           marginBottom: '1rem',
           fontWeight: 600,
         }}

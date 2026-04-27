@@ -95,6 +95,7 @@ export default function SkillsSection() {
         <SkillGroup group={SOFTWARE_ENGINEERING} isInView={isInView} />
 
         {/* Divider */}
+        <BoxSdfFrame active={isInView} style={{ display: 'inline-block', width: 'auto' }}>
         <div
           style={{
             width: '100%',
@@ -104,6 +105,7 @@ export default function SkillsSection() {
             margin: '3.5rem auto',
           }}
         />
+        </BoxSdfFrame>
 
         <SkillGroup group={GAME_DEVELOPMENT} isInView={isInView} />
       </div>
@@ -120,7 +122,7 @@ export default function SkillsSection() {
           justifyContent: 'center',
         }}
       >
-        <ScrollArrow label="work experience" targetId="work-experience" style={{ color: '#715A5A' }} />
+        <ScrollArrow label="work experience" targetId="work-experience" style={{ color: '#D3DAD9' }} />
       </div>
     </section>
   )

@@ -79,7 +79,7 @@ export default function IntroSection() {
         >
           I'm Einar Klarlund, a gameplay and software engineer with full-stack and cloud service skills, and a love for retro games.
         </p>
-        <ScrollArrow label="projects" targetId="projects" style={{ color: '#715A5A' }} />
+        <ScrollArrow label="projects" targetId="projects" style={{ color: '#D3DAD9' }} />
       </div>
     </section>
   )
