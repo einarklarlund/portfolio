@@ -59,7 +59,7 @@ export default function AppInner() {
       <Suspense fallback={null}>
         <ProjectsSection />
         <SkillsSection />
-        <WorkExperienceSection />
+        {/* <WorkExperienceSection /> */}
       </Suspense>
     </main>
   )

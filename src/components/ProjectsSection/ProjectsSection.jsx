@@ -147,7 +147,7 @@ export default function ProjectsSection() {
           justifyContent: 'center',
         }}
       >
-        <ScrollArrow label="skills" targetId="skills" style={{ color: '#D3DAD9' }} />
+        {/* <ScrollArrow label="skills" targetId="skills" style={{ color: '#D3DAD9' }} /> */}
       </div>
     </section>
   )

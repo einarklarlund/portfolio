@@ -122,7 +122,7 @@ export default function SkillsSection() {
           justifyContent: 'center',
         }}
       >
-        <ScrollArrow label="work experience" targetId="work-experience" style={{ color: '#D3DAD9' }} />
+        {/* <ScrollArrow label="work experience" targetId="work-experience" style={{ color: '#D3DAD9' }} /> */}
       </div>
     </section>
   )
