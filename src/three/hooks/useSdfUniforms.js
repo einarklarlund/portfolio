@@ -45,18 +45,24 @@ export function useSdfUniforms(waveUniformsRef, velocityUniformsRef) {
       const ww = rect.width / vw
       const hh = rect.height / vh
 
-      const cur = currentById.current.get(id) ?? { intensity: 0, falloff: 0 }
+      const cur = currentById.current.get(id) ?? { intensity: 0, falloff: 0, scale: 0 }
+      const targetScale = entry.targetScale ?? 1
       cur.intensity += (entry.targetIntensity - cur.intensity) * LERP
       cur.falloff += (entry.targetFalloff - cur.falloff) * LERP
+      cur.scale += (targetScale - cur.scale) * LERP
       if (Math.abs(entry.targetIntensity - cur.intensity) < SNAP_THRESHOLD) cur.intensity = entry.targetIntensity
       if (Math.abs(entry.targetFalloff - cur.falloff) < SNAP_THRESHOLD) cur.falloff = entry.targetFalloff
+      if (Math.abs(targetScale - cur.scale) < SNAP_THRESHOLD) cur.scale = targetScale
       currentById.current.set(id, cur)
 
       const type = SDF_TYPE[entry.type] ?? SDF_TYPE.box
+      const sw = ww * cur.scale
+      const sh = hh * cur.scale
+      const sr = (entry.radius ?? 0) * cur.scale
 
       w.sdfTypes.value[i] = type
       w.sdfCenters.value[i].set(cx, cy)
-      w.sdfSizes.value[i].set(ww, hh, entry.radius ?? 0)
+      w.sdfSizes.value[i].set(sw, sh, sr)
       w.sdfFalloffs.value[i] = cur.falloff
       w.sdfIntensities.value[i] = cur.intensity
 

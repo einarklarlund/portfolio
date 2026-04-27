@@ -16,8 +16,10 @@ export const useDitherStore = create((set) => ({
   waveColor: [0.216, 0.208, 0.243],
   backgroundColor: [0.827, 0.855, 0.851],
 
-  // id -> { el, type, targetIntensity, targetFalloff, falloffRadius? }
+  // id -> { el, type, targetIntensity, targetFalloff, targetScale, radius? }
   // `el` is a React ref; three.js reads el.current.getBoundingClientRect() each frame.
+  // targetScale ∈ [0, 1] — useSdfUniforms multiplies the measured rect size by
+  // the (lerped) current scale, letting an SDF tween from 0 → element-size.
   sdfs: new Map(),
 
   // Mouse in DPR-scaled pixel coords (top-left origin), updated imperatively

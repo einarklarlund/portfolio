@@ -7,7 +7,7 @@ import './IntroSection.css'
 export default function IntroSection() {
   const sectionRef = useRef(null)
   const crtRef = useRef(null)
-  useSdfFromRef(crtRef, { type: 'box', intensity: 0.8, falloff: 0.03 })
+  useSdfFromRef(crtRef, { type: 'box', intensity: 0.8, falloff: 0.12 })
 
   return (
     <section

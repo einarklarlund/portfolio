@@ -14,7 +14,7 @@ uniform float colorNum;
 uniform float pixelSize;
 uniform vec3 waveColor;
 uniform vec3 backgroundColor;
-#define MAX_SDFS 12
+#define MAX_SDFS 24
 uniform int sdfCount;
 uniform int sdfTypes[MAX_SDFS];
 uniform vec2 sdfCenters[MAX_SDFS];

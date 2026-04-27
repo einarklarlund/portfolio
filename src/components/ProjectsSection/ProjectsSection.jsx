@@ -118,15 +118,20 @@ export default function ProjectsSection() {
   )
 
   return (
-    <BoxSdfFrame>
     <section id="projects" ref={sectionRef} style={{ position: 'relative', minHeight: '100vh', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6rem 2rem', color: '#37353E' }}>
-      <div className="reveal reveal-up" data-visible={isInView} style={{ width: '100%', maxWidth: '900px', textAlign: 'center' }}>
-        <h2 ref={headingRef} style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 700, letterSpacing: '-0.02em', marginBottom: '3rem' }}>
-          Projects
-        </h2>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', justifyContent: 'center' }}>
+      <div style={{ width: '100%', maxWidth: '900px', textAlign: 'center' }}>
+        <BoxSdfFrame active={isInView} style={{ display: 'inline-block', width: 'auto', marginBottom: '3rem' }}>
+          <h2 ref={headingRef} className="reveal reveal-up" data-visible={isInView} style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 700, letterSpacing: '-0.02em', margin: 0, padding: '0.4rem 1.2rem' }}>
+            Projects
+          </h2>
+        </BoxSdfFrame>
+        <div
+          className="reveal reveal-up"
+          data-visible={isInView}
+          style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', justifyContent: 'center' }}
+        >
           {sortedProjects.map((project) => (
-            <ProjectCard key={project.id} project={project} isSelected={selectedId === project.id} selectedId={selectedId} onSelect={handleSelect} />
+            <ProjectCard key={project.id} project={project} isSelected={selectedId === project.id} selectedId={selectedId} onSelect={handleSelect} isInView={isInView} />
           ))}
         </div>
       </div>
@@ -145,6 +150,5 @@ export default function ProjectsSection() {
         <ScrollArrow label="skills" targetId="skills" style={{ color: '#44444E' }} />
       </div>
     </section>
-    </BoxSdfFrame>
   )
 }

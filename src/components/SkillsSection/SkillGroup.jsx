@@ -1,8 +1,14 @@
 import SkillCategory from './SkillCategory'
+import BoxSdfFrame from '../BoxSdfFrame/BoxSdfFrame'
 
 export default function SkillGroup({ group, isInView }) {
   return (
-    <div style={{ textAlign: 'center' }}>
+    <BoxSdfFrame active={isInView} intensity={0.25} falloff={0.04}>
+    <div
+      className="reveal reveal-up"
+      data-visible={isInView}
+      style={{ textAlign: 'center', padding: '2rem 1.5rem' }}
+    >
       <h3
         style={{
           fontSize: 'clamp(1.2rem, 3vw, 1.6rem)',
@@ -44,5 +50,6 @@ export default function SkillGroup({ group, isInView }) {
         ))}
       </div>
     </div>
+    </BoxSdfFrame>
   )
 }

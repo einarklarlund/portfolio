@@ -12,7 +12,7 @@ uniform float waveSpeed;     // matches the wave shader's waveSpeed
 uniform float deltaTime;     // seconds since last frame
 uniform float pushStrength;  // steady-state noise-space displacement at rim
 uniform float pressureDecay; // per-frame pressure retention (higher = slower refill)
-#define MAX_SDFS 12
+#define MAX_SDFS 24
 uniform int sdfCount;
 uniform int sdfTypes[MAX_SDFS];
 uniform vec2 sdfCenters[MAX_SDFS];

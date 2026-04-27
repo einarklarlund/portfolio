@@ -1,12 +1,16 @@
 /* Scroll-reveal primitives. Each element starts in the "hidden" state
  * (opacity 0, transformed) and animates to rest when [data-visible="true"]
- * is set by the useInView observer. Stagger via inline --delay. */
+ * is set by the useInView observer. Stagger via inline --delay.
+ *
+ * A base delay holds the content hidden for the first chunk of the reveal,
+ * giving the SDF size-tween (driven by the same isInView flag) time to grow
+ * the highlight panel before the text fades in on top of it. */
 
 .reveal {
   opacity: 0;
   transition:
-    opacity 0.7s ease-out var(--delay, 0s),
-    transform 0.7s ease-out var(--delay, 0s);
+    opacity 0.7s ease-out calc(var(--delay, 0s) + 0.5s),
+    transform 0.7s ease-out calc(var(--delay, 0s) + 0.5s);
   will-change: opacity, transform;
 }
 .reveal[data-visible="true"] {

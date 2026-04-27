@@ -10,7 +10,7 @@ import { useDitherStore } from '../store/ditherStore'
 // Position is never written from React — three.js reads the bounding rect on
 // its own tick. This means layout animations (CSS transitions, View
 // Transitions) track perfectly without any polling on the React side.
-export function useSdfFromRef(ref, { type = 'box_outline', intensity = 0, falloff = 0, radius = 0 } = {}) {
+export function useSdfFromRef(ref, { type = 'box_outline', intensity = 0, falloff = 0, radius = 0, scale = 1 } = {}) {
   const id = useId()
   const registerSdf = useDitherStore((s) => s.registerSdf)
   const unregisterSdf = useDitherStore((s) => s.unregisterSdf)
@@ -21,10 +21,11 @@ export function useSdfFromRef(ref, { type = 'box_outline', intensity = 0, fallof
       type,
       targetIntensity: intensity,
       targetFalloff: falloff,
+      targetScale: scale,
       radius,
     })
     return () => unregisterSdf(id)
-    // Depend only on mount-time identity + shape. intensity/falloff changes
+    // Depend only on mount-time identity + shape. intensity/falloff/scale changes
     // flow through the mutation effect below so we don't re-register the
     // entry (which would reset the lerp state in useSdfUniforms).
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -35,5 +36,6 @@ export function useSdfFromRef(ref, { type = 'box_outline', intensity = 0, fallof
     if (!entry) return
     entry.targetIntensity = intensity
     entry.targetFalloff = falloff
-  }, [id, intensity, falloff])
+    entry.targetScale = scale
+  }, [id, intensity, falloff, scale])
 }

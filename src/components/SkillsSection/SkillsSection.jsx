@@ -54,7 +54,6 @@ export default function SkillsSection() {
   useScrollColorTransition(sectionRef, SECTION_COLOR, PREV_COLOR)
 
   return (
-    <BoxSdfFrame>
     <section
       id="skills"
       ref={sectionRef}
@@ -71,24 +70,27 @@ export default function SkillsSection() {
       }}
     >
       <div
-        className="reveal reveal-up"
-        data-visible={isInView}
         style={{
           width: '100%',
           maxWidth: '900px',
           textAlign: 'center',
         }}
       >
-        <h2
-          style={{
-            fontSize: 'clamp(1.8rem, 4vw, 2.8rem)',
-            fontWeight: 700,
-            letterSpacing: '-0.02em',
-            marginBottom: '3rem',
-          }}
-        >
-          Skills
-        </h2>
+        <BoxSdfFrame active={isInView} style={{ display: 'inline-block', width: 'auto', marginBottom: '3rem' }}>
+          <h2
+            className="reveal reveal-up"
+            data-visible={isInView}
+            style={{
+              fontSize: 'clamp(1.8rem, 4vw, 2.8rem)',
+              fontWeight: 700,
+              letterSpacing: '-0.02em',
+              margin: 0,
+              padding: '0.4rem 1.2rem',
+            }}
+          >
+            Skills
+          </h2>
+        </BoxSdfFrame>
 
         <SkillGroup group={SOFTWARE_ENGINEERING} isInView={isInView} />
 
@@ -121,6 +123,5 @@ export default function SkillsSection() {
         <ScrollArrow label="work experience" targetId="work-experience" style={{ color: '#715A5A' }} />
       </div>
     </section>
-    </BoxSdfFrame>
   )
 }

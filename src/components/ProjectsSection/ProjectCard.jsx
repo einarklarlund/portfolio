@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import ProjectThumbnail from './ProjectThumbnail'
 import BoxSdfFrame from '../BoxSdfFrame/BoxSdfFrame'
 
-export default function ProjectCard({ project, isSelected, onSelect, selectedId }) {
+export default function ProjectCard({ project, isSelected, onSelect, selectedId, isInView = true }) {
   const [hovered, setHovered] = useState(false)
   const [clickPulse, setClickPulse] = useState(false)
   const pulseTimeoutRef = useRef(null)
@@ -17,7 +17,7 @@ export default function ProjectCard({ project, isSelected, onSelect, selectedId 
   }
 
   const targetIntensity = clickPulse ? 0.3 : hovered ? 0.0375 : 0
-  const targetFalloff   = clickPulse ? 0.15 : hovered ? 0.02 : 0
+  const targetFalloff   = clickPulse ? 0.12 : hovered ? 0.06 : 0
 
   return (
     <div
@@ -41,28 +41,30 @@ export default function ProjectCard({ project, isSelected, onSelect, selectedId 
         viewTransitionName: `project-card-${project.id}`,
       }}
     >
-      <BoxSdfFrame intensity={targetIntensity} falloff={targetFalloff}>
-        <ProjectThumbnail color={project.color} videos={project.videos} active={active} />
-      </BoxSdfFrame>
-      <p style={{ marginTop: '0.75rem', fontSize: '0.95rem', fontWeight: 600, color: '#37353E' }}>
-        {project.title}
-      </p>
-      <div className="collapse" data-open={isSelected}>
-        <div className="collapse-inner">
-          <div style={{ padding: '1rem 0' }}>
-            <p style={{ fontSize: '0.9rem', color: '#44444E', lineHeight: 1.6, marginBottom: '1rem' }} onClick={(e) => e.stopPropagation()}>
-              {project.description}
-            </p>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {project.tech.map((t) => (
-                <span key={t} style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem', borderRadius: '999px', background: `${project.color}18`, border: `1px solid ${project.color}33`, color: project.color }}>
-                  {t}
-                </span>
-              ))}
+      <BoxSdfFrame active={isInView} intensity={0.25} falloff={0.03}>
+        <BoxSdfFrame type="box_outline" intensity={targetIntensity} falloff={targetFalloff}>
+          <ProjectThumbnail color={project.color} videos={project.videos} active={active} />
+        </BoxSdfFrame>
+        <p style={{ marginTop: '0.75rem', fontSize: '0.95rem', fontWeight: 600, color: '#37353E' }}>
+          {project.title}
+        </p>
+        <div className="collapse" data-open={isSelected}>
+          <div className="collapse-inner">
+            <div style={{ padding: '1rem 0' }}>
+              <p style={{ fontSize: '0.9rem', color: '#44444E', lineHeight: 1.6, marginBottom: '1rem' }} onClick={(e) => e.stopPropagation()}>
+                {project.description}
+              </p>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {project.tech.map((t) => (
+                  <span key={t} style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem', borderRadius: '999px', background: `${project.color}18`, border: `1px solid ${project.color}33`, color: project.color }}>
+                    {t}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </BoxSdfFrame>
     </div>
   )
 }
